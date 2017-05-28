@@ -1,6 +1,6 @@
-# Rpi Client
+# RPi Client
 
-* Takes image from webcam and streams to server
+* Takes image from webcam and streams to server.
 
 * Displays graphics by MQTT
 
@@ -14,46 +14,47 @@ install Raspbian
 # Raspberry Pi config
 sudo raspi-config
 
-	set hostname -> m3gateui
+	set hostname
 	set user password
 	enable camera
 	enable ssh
 	boot to console
 
 
-
-
 sudo nano /boot/config.txt
 
-	* gpu_mem=180
+	add line: gpu_mem=180
 
 sudo apt-get update
+
 sudo apt-get upgrade
-sudo reboot
 
-# Install new Node JS
-
-curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
-sudo apt-get install nodejs
-
-# Install Git repo
+# Install RTV Git repository
 
 sudo chown pi:pi /opt/
 cd /opt/
 git clone https://github.com/timotoots/rtv.git
 
 
+# Install new Node JS
+
+curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
+sudo apt-get install nodejs
+
+
 # Install AminoGFX library
-# https://github.com/joshmarinacci/aminogfx-gl
 
-sudo apt-get install libjpeg-dev libavformat-dev libswscale-dev libavcodec-dev
+	https://github.com/joshmarinacci/aminogfx-gl
 
-cd /opt/rtv/client
-sudo npm install aminogfx-gl
-node /opt/rtv/client/test.js
+	sudo apt-get install libjpeg-dev libavformat-dev libswscale-dev libavcodec-dev
+
+	cd /opt/rtv/client
+	sudo npm install aminogfx-gl
+	node /opt/rtv/client/test.js
 
 # Build and install Sweep SDK
-# https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md
+	
+	 https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md
 
 sudo apt-get install cmake
 
@@ -62,7 +63,7 @@ git clone https://github.com/scanse/sweep-sdk.git
 
 # Install Paho MQTT module for Python3
 
-sudo pip3 install paho-mqtt
+	sudo pip3 install paho-mqtt
 
 
 # Disable console blanking
