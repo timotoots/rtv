@@ -19,6 +19,6 @@ with Sweep('/dev/ttyUSB0') as sweep:
 
     for scan in sweep.get_scans():
 
-        print('{}\n'.format(scan))
+       # print('{}\n'.format(scan))
 
         ret= client1.publish("sweep/scan",str(scan))                   #publish
