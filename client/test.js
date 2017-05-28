@@ -1,4 +1,7 @@
-var amino = require('./node_modules/aminogfx-gl/main.js');
+'use strict';
+
+var path = require('path');
+var amino = require('./aminogfx-gl/main.js');
 
 var gfx = new amino.AminoGfx();
 
@@ -20,9 +23,9 @@ gfx.start(function (err) {
     root.add(rect);
     root.add(rect2);
 
-    // rect.opacity.anim().from(1.0).to(0.0).dur(1000).loop(-1).start();
-    rect.x.anim().from(-100).to(1920).dur(10000).loop(30).start();
-    rect2.y.anim().from(-100).to(1080).dur(10000).loop(30).start();
+    // rect.opacity.anim().from(1.0).to(0.0).dur(100).loop(-1).start();
+    rect.x.anim().from(-100).to(1920).dur(1000).loop(30).start();
+    rect2.y.anim().from(-100).to(1080).dur(1000).loop(30).start();
 
 /*
     //text
