@@ -44,16 +44,26 @@ git clone https://github.com/timotoots/rtv.git
 
 
 # Install AminoGFX library
+# https://github.com/joshmarinacci/aminogfx-gl
 
 sudo apt-get install libjpeg-dev libavformat-dev libswscale-dev libavcodec-dev
 
 cd /opt/rtv/client
 sudo npm install aminogfx-gl
+node /opt/rtv/client/test.js
 
-# Install Sweek SDK
+# Build and install Sweep SDK
+# https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md
+
+sudo apt-get install cmake
 
 cd /opt/
-https://github.com/scanse/sweep-sdk.git
+git clone https://github.com/scanse/sweep-sdk.git
+
+# Install Paho MQTT module for Python3
+
+sudo pip3 install paho-mqtt
+
 
 # Disable console blanking
 
@@ -62,7 +72,9 @@ sudo nano /etc/kbd/config
 	BLANK_TIME=0
 	POWERDOWN_TIME=0 
 
-
+sudo nano /boot/cmdline.txt
+	
+	set consoleblank=0
 
 
 # Start script on boot
