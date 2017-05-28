@@ -1,8 +1,8 @@
 # RPi Client
 
 * Takes image from webcam and streams to server.
-
-* Displays graphics by MQTT
+* Scans room with Sweep Lidar and sends measurements by MQTT.
+* Displays graphics controlled by MQTT.
 
 
 # Installation
@@ -31,20 +31,20 @@ sudo apt-get upgrade
 
 # Install RTV Git repository
 
-sudo chown pi:pi /opt/
-cd /opt/
-git clone https://github.com/timotoots/rtv.git
+	sudo chown pi:pi /opt/
+	cd /opt/
+	git clone https://github.com/timotoots/rtv.git
 
 
 # Install new Node JS
 
-curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
-sudo apt-get install nodejs
+	curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
+	sudo apt-get install nodejs
 
 
 # Install AminoGFX library
 
-	https://github.com/joshmarinacci/aminogfx-gl
+https://github.com/joshmarinacci/aminogfx-gl  
 
 	sudo apt-get install libjpeg-dev libavformat-dev libswscale-dev libavcodec-dev
 
@@ -54,12 +54,12 @@ sudo apt-get install nodejs
 
 # Build and install Sweep SDK
 	
-	 https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md
+https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md  
 
-sudo apt-get install cmake
+	sudo apt-get install cmake
 
-cd /opt/
-git clone https://github.com/scanse/sweep-sdk.git
+	cd /opt/
+	git clone https://github.com/scanse/sweep-sdk.git
 
 # Install Paho MQTT module for Python3
 
