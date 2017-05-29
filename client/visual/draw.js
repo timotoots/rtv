@@ -11,8 +11,11 @@ var gfx = new amino.AminoGfx();
 var all_rect = [];
 var all_rect_pos = [];
 var all_poly = [];
+var all_depth = [];
+
 var root_group;
 
+var depth_i = 0;
 
 // MQTT CONNECT
 const mqtt = require('mqtt')  
@@ -20,6 +23,8 @@ const client = mqtt.connect('mqtt://192.168.22.20')
 
 client.on('connect', () => {  
   client.subscribe(client_id + '/#');
+  client.subscribe('sweep/#');
+
 })
 
 
@@ -75,11 +80,6 @@ client.on('message', (topic, message) => {
 
         console.log("MOVE poly ID " + el_id + coords);
 
-    } else if (topics[1] === 'mm' && el_id){
-
-        // 1216 x 682 mm = 1920x1080
-
-
     } else {
 
        console.log("Unknown topic: " + topic);
@@ -90,7 +90,23 @@ client.on('message', (topic, message) => {
 
 })
 
+function mm2px_x(value_mm){
 
+    // substract screen offset from point zero
+    value_mm = value_mm - 1402;
+
+    // screen size 1216 x 682 mm = 1920x1080px 
+    return value_mm * 1.5789473684;  
+
+
+}
+
+function mm2px_y(value_mm){
+
+    // screen size 1216 x 682 mm = 1920x1080px 
+    return value_mm * 1.5789473684;  
+
+}
 
 ////////////////////////
 
