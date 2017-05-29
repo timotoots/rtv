@@ -1,31 +1,109 @@
 'use strict';
 
+var client_id = "rtv2";
+
 var path = require('path');
 var amino = require('./aminogfx-gl/main.js');
 
 var gfx = new amino.AminoGfx();
 
+// elements and their metadata
+var all_rect = [];
+var all_rect_pos = [];
+var all_poly = [];
+var root_group;
+
+
+// MQTT CONNECT
+const mqtt = require('mqtt')  
+const client = mqtt.connect('mqtt://192.168.22.20')
+
+client.on('connect', () => {  
+  client.subscribe(client_id + '/#');
+})
+
+
+
+client.on('message', (topic, message) => {  
+
+    var topics = topic.split("/");
+    var el_id = topics[2];
+
+    if(topics[1] === 'square' && el_id) {
+
+        if (typeof all_rect[el_id] === "undefined") {
+
+            // create element
+            console.log("NEW square / ID:" + el_id);
+            all_rect[el_id] = gfx.createRect().x(-1000).y(-1000).w(200).h(200).fill('#FFFFFF').opacity(1.0);
+            root_group.add(all_rect[el_id]);
+            all_rect_pos[el_id] = [-1000,-1000];
+
+        }
+
+        var msg = message.toString();
+        var coords = msg.split(",");
+
+        all_rect[el_id].x.anim().from(all_rect_pos[el_id][0]).to(coords[0]).dur(10).start();
+        all_rect[el_id].y.anim().from(all_rect_pos[el_id][1]).to(coords[1]).dur(10).start();
+
+        all_rect_pos[el_id] = coords;
+
+
+        console.log("MOVE square ID " + el_id + coords);
+
+
+    } else if(topics[1] === 'poly' && el_id) {
+ 
+
+        if (typeof all_poly[el_id] === "undefined") {
+
+            // create element
+            console.log("NEW poly / ID:" + el_id);
+
+             all_poly[el_id] = gfx.createPolygon();
+             all_poly[el_id].fill("#FFFFFF");
+             root_group.add(all_poly[el_id]);
+             all_rect_pos[el_id] = [-1000,-1000,-1000,-1000];
+
+        }
+
+        var msg = message.toString();
+        var coords = msg.split(",");
+
+        all_poly[el_id].geometry(coords);
+
+        console.log("MOVE poly ID " + el_id + coords);
+
+    } else if (topics[1] === 'mm' && el_id){
+
+        // 1216 x 682 mm = 1920x1080
+
+
+    } else {
+
+       console.log("Unknown topic: " + topic);
+
+
+    }
+
+
+})
+
+
+
+////////////////////////
+
 gfx.start(function (err) {
+
     if (err) {
         console.log('Start failed: ' + err.message);
         return;
     }
 
-    //root
-    var root = this.createGroup();
+    root_group = this.createGroup();
+    this.setRoot(root_group);
 
-    this.setRoot(root);
-
-    //rect
-    var rect = this.createRect().w(100).h(1080).fill('#FFFFFF').opacity(1.0);
-    var rect2 = this.createRect().h(100).w(1920).fill('#FFFFFF').opacity(1.0);
-
-    root.add(rect);
-    root.add(rect2);
-
-    // rect.opacity.anim().from(1.0).to(0.0).dur(100).loop(-1).start();
-    rect.x.anim().from(-100).to(1920).dur(1000).loop(30).start();
-    rect2.y.anim().from(-100).to(1080).dur(1000).loop(30).start();
 
 /*
     //text
@@ -33,7 +111,7 @@ gfx.start(function (err) {
 
     text.text('Sample Text');
     text.opacity.anim().from(0.0).to(1.0).dur(1000).loop(-1).start();
-    root.add(text);
+    root_group.add(text);
 
   */
 
