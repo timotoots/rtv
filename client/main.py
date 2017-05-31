@@ -6,39 +6,54 @@ import socket
 broker = "192.168.22.20"
 port = 1883
 client_id = socket.gethostname()
+print(client_id)
 
 def on_message(client1, userdata, message):
 	print("message received  "  ,str(message.payload.decode("utf-8")))
 	msg = message.payload.decode("utf-8")
 	print(message.topic)
 
-	if message.topic == "rtv_master/control":
+	if message.topic == "rtv_all/control":
 
 		if msg == "test":
 
 			output = subprocess.Popen(["ls", "-la"], stdout=subprocess.PIPE).communicate()[0]
 			output = output.decode("utf-8")
 			print (output)
-			client1.publish(client_id + "/control_log",output)
+			client1.publish(client_id + "/control_log/"+msg,output)
 
 		if msg == "reboot":
 
 			output = subprocess.Popen(["reboot"], stdout=subprocess.PIPE).communicate()[0]
 			output = output.decode("utf-8")
 			print (output)
-			client1.publish(client_id + "/control_log",output)
+			client1.publish(client_id + "/control_log/"+msg,output)
 
-		# if msg == "git pull":
+		if msg == "git_pull":
 
-		if msg == "app reboot":
+
+			output = subprocess.Popen(["git","pull"],  cwd=r'/opt/rtv/', stdout=subprocess.PIPE).communicate()[0]
+			output = output.decode("utf-8")
+			print (output)
+			client1.publish(client_id + "/control_log/"+msg,output)
+
+		if msg == "app_reboot":
 
 			output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
 			output = output.decode("utf-8")
 			print (output)
-			client1.publish(client_id + "/control_log",output)
+			client1.publish(client_id + "/control_log"+msg,output)
 
 			subprocess.Popen(["node","/opt/rtv/client/visual/draw.js","&"])
-			client1.publish(client_id + "/control_log","draw started")
+			client1.publish(client_id + "/control_log/"+msg,"draw started")
+
+		if msg == "app_kill":
+
+			output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
+			output = output.decode("utf-8")
+			print (output)
+			client1.publish(client_id + "/control_log/"+msg,output)
+
 
 
 		# if msg == "sweep reboot":
