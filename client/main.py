@@ -44,7 +44,7 @@ def on_message(client1, userdata, message):
 			output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
 			output = output.decode("utf-8")
 			print (output)
-			client1.publish(client_id + "/control_log"+msg,output)
+			client1.publish(client_id + "/control_log/"+msg,output)
 
 			subprocess.Popen(["node","/opt/rtv/client/visual/draw.js","&"])
 			client1.publish(client_id + "/control_log/"+msg,"draw started")

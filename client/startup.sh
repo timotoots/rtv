@@ -5,7 +5,7 @@
 #while true; do
 
      /opt/rtv/client/video_server.py &
-     node /opt/rtv/client/visual/draw.js &
+#     node /opt/rtv/client/visual/draw.js &
      /opt/rtv/client/main.py &
 
 if [ "$HOSTNAME" = "rtv2" ]; then
