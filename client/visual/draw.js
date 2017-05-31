@@ -153,8 +153,8 @@ client.on('message', (topic, message) => {
 
             } // for
 
-            var coords_x = mm2px_x(map[20][0]);
-            var coords_y = mm2px_y(map[20][1]);
+            var coords_x = mm2px_x(map[28][0]);
+            var coords_y = mm2px_y(map[28][1]);
             all_face[el_id]["text"] =  gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text('FACE '+el_id).fontWeight(200);
             root_group.add(all_face[el_id]["text"]);
 
@@ -183,10 +183,13 @@ client.on('message', (topic, message) => {
 
         } // for
 
-     
+        var coords_x = mm2px_x(map[28][0]);
+        var coords_y = mm2px_y(map[28][1]);
+
+
         // move text
-        all_face[el_id]["text"].x(map[8][0]);
-        all_face[el_id]["text"].y(map[8][1]);
+        all_face[el_id]["text"].x(coords_x);
+        all_face[el_id]["text"].y(coords_y);
 
 
         // save for next time
