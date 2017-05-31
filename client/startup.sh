@@ -3,6 +3,14 @@
 # Startup script for RTV server
 
 #while true; do
-     /opt/rtv/client/camera.sh &
-     python3 /opt/rtv/client/sweep.py &
+     
+     python /opt/rtv/client/video_server.py &
+     node /opt/rtv/client/visual/draw.js &
+
+
+if [ "$HOSTNAME" = rtv2 ]; then
+    python3 /opt/rtv/client/sweep_xz.py &
+fi
+
+
 #done

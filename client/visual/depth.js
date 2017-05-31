@@ -13,6 +13,8 @@ var all_depth = [];
 var root_group;
 
 var depth_i = 0;
+var i=0;
+
 
 // MQTT CONNECT
 const mqtt = require('mqtt')  
@@ -31,7 +33,7 @@ client.on('message', (topic, message) => {
     var topics = topic.split("/");
     var el_id = topics[2];
 
-    if (topic === 'sweep/scan_xz'){
+    if (topic === 'sweep/scan_xzs'){
 
         var msg = message.toString();
         var map = JSON.parse(msg);
@@ -39,27 +41,80 @@ client.on('message', (topic, message) => {
         for (var depth_i = 0; depth_i < map.length; depth_i++) {
 
             var coords_x = mm2px_x(map[depth_i][0]*10);
-            var bar_width = map[depth_i][1]/4;
+            var bar_width = map[depth_i][1]/3;
 
-            if(map[depth_i][1] > 20 && map[depth_i][1] < 200){
+            i++;
 
-                 console.log(coords_x);
+            if(map[depth_i][0]>0 && map[depth_i][1] > 20 && map[depth_i][1] < 200){
 
-                if (typeof all_depth[depth_i] === "undefined") {
+                 // console.log(coords_x);
 
-                console.log("NEW depth / ID:" + depth_i);
+                if (typeof all_depth[i] === "undefined") {
 
-                all_depth[depth_i] = gfx.createRect().x(coords_x-bar_width/2).y(0).w(bar_width).h(1080).fill('#FFFFFF').opacity(1.0);
-                root_group.add(all_depth[depth_i]);
+                console.log("NEW depth / ID:" + i);
+
+                all_depth[i] = gfx.createRect().x(coords_x-bar_width/2).y(0).w(bar_width).h(1080).fill('#FFFFFF').opacity(1.0);
+                root_group.add(all_depth[i]);
 
                 } else {
 
-                     all_depth[depth_i].x.anim().from(0).to(coords_x).dur(1).start();
+                     all_depth[i].x.anim().from(0).to(coords_x).dur(1).start();
+
                 }
 
-                 all_depth[depth_i].opacity.anim().from(1).to(0).dur(100).start();
+                 all_depth[i].opacity.anim().from(1).to(0).dur(3000).start();
+
+                if(i>1000){
+                   i=0;
+                    }
 
             } // if in boundaries
+
+        
+
+
+        }
+
+
+
+    } else if (topic === 'sweep/scan_objects'){
+
+        var msg = message.toString();
+        var map = JSON.parse(msg);
+
+        for (var depth_i = 0; depth_i < map.length; depth_i++) {
+
+            var coords_x = mm2px_x(map[depth_i][0]*10);
+            var bar_width = map[depth_i][1]/3;
+
+            i++;
+
+            if(map[depth_i][0]>0 && map[depth_i][1] > 20 && map[depth_i][1] < 300){
+
+                 // console.log(coords_x);
+
+                if (typeof all_depth[i] === "undefined") {
+
+                console.log("NEW depth / ID:" + i);
+
+                all_depth[i] = gfx.createRect().x(coords_x-bar_width/2).y(0).w(bar_width).h(1080).fill('#FFFFFF').opacity(1.0);
+                root_group.add(all_depth[i]);
+
+                } else {
+
+                     all_depth[i].x.anim().from(0).to(coords_x).dur(1).start();
+
+                }
+
+                 all_depth[i].opacity.anim().from(1).to(0).dur(3000).start();
+
+                if(i>1000){
+                   i=0;
+                    }
+
+            } // if in boundaries
+
+        
 
 
         }
