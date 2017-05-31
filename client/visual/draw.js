@@ -33,6 +33,7 @@ const client = mqtt.connect('mqtt://192.168.22.20')
 
 client.on('connect', () => {  
   client.subscribe(client_id + '/#');
+  client.subscribe('rtv_all/#');
 
 })
 
@@ -238,7 +239,14 @@ client.on('message', (topic, message) => {
 function mm2px_x(value_mm){
 
     // substract screen offset in mm from point zero on glass
-    value_mm = value_mm - 1405;
+    if(client_id=="rtv1"){
+       var offset = 164;
+    } else  if(client_id=="rtv2"){
+       var offset = 1405;
+    } else  if(client_id=="rtv3"){
+       var offset = 2644;
+    }
+    value_mm = value_mm - offset;
 
     return value_mm * 1.5259262635 + 38;
 
