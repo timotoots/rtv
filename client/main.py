@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import paho.mqtt.client as paho
 import time
 import subprocess
@@ -81,7 +83,7 @@ client1.on_message = on_message        #attach function to callback
 time.sleep(1)
 
 client1.connect(broker,port)      
-client1.subscribe("rtv_master/control")
+client1.subscribe("rtv_all/control")
 						   #establish connection
 client1.loop_forever()    #start the loop
 # client1.publish("house/bulbs/bulb1","OFF")
