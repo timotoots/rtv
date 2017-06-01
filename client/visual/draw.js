@@ -1,9 +1,8 @@
 'use strict';
 
-//var client_id = "rtv2";
-
 var os = require('os');
 var client_id = os.hostname();
+//var client_id = "rtv2";
 
 var path = require('path');
 var amino = require('./aminogfx-gl/main.js');
@@ -19,7 +18,6 @@ var all_text_pos = [];
 var all_face = [];
 var all_face_pos = [];
 
-
 var all_poly = [];
 var all_depth = [];
 
@@ -29,15 +27,18 @@ var depth_i = 0;
 
 ///////////////////////////////////////////////
 
+// Calibrarion data and functions
+
+
     // in pixels on screen
     var  px_calib_x1 = 100;
     var  px_calib_x2 = 1800;
     var  px_calib_y1 = 100;
     var  px_calib_y2 = 1000;
 
+    // in mm from mirror top
     if(client_id=="rtv1"){
 
-        // in mm from mirror top
         var mm_calib_x1 = 205;
         var mm_calib_x2 = 1320;
         var mm_calib_y1 = 210;
@@ -45,7 +46,6 @@ var depth_i = 0;
 
     } else if(client_id=="rtv2"){
 
-        // in mm from mirror top
         var mm_calib_x1 = 1447;
         var mm_calib_x2 = 2563;
         var mm_calib_y1 = 210;
@@ -53,7 +53,6 @@ var depth_i = 0;
 
     } else if(client_id=="rtv3"){
 
-        // in mm from mirror top
         var mm_calib_x1 = 2691;
         var mm_calib_x2 = 3807;
         var mm_calib_y1 = 210;
@@ -75,18 +74,49 @@ var depth_i = 0;
     var mm_screen_offset_from_mirror_x = mm_calib_x1 - px_calib_x1 / px_per_mm_x;
 
 
+function mm2px_x(value_mm){
+
+    return (value_mm - mm_screen_offset_from_mirror_x)  *  px_per_mm_x;      
+
+}
+
+function mm2px_y(value_mm){
+
+    return (value_mm - mm_screen_offset_from_mirror_y)  *  px_per_mm_y;      
+
+}
+
+
+
 ///////////////////////////////////////////////
 
-// MQTT CONNECT
+// MQTT connect
+
 const mqtt = require('mqtt')  
 const client = mqtt.connect('mqtt://192.168.22.20')
 
 client.on('connect', () => {  
+
   client.subscribe(client_id + '/#');
   client.subscribe('rtv_all/#');
 
 })
 
+///////////////////////////////////////////////
+
+// Amino start and custom fonts
+
+gfx.start(function (err) {
+
+    if (err) {
+        console.log('Amino start failed: ' + err.message);
+        return;
+    }
+
+    root_group = this.createGroup();
+    this.setRoot(root_group);
+  
+});
 
 amino.fonts.registerFont({
     name: 'Monotxt',
@@ -108,7 +138,9 @@ amino.fonts.registerFont({
     }
 });
 
+///////////////////////////////////////////////
 
+// Drawing functions
 
 
 client.on('message', (topic, message) => {  
@@ -133,17 +165,8 @@ client.on('message', (topic, message) => {
         var msg = message.toString();
         var coords = msg.split(",");
 
-        // console.log(coords);
-
         coords[0] = mm2px_x(coords[0]);
         coords[1] = mm2px_y(coords[1]);
-
-        // coords[0] = parseInt(coords[0]);
-        // coords[1] = parseInt(coords[1]);
-
- 
-        // all_rect[el_id].w(1843);
-        // all_rect[el_id].h(1031);
 
        
         all_rect[el_id].x.anim().from(all_rect_pos[el_id][0]).to(coords[0]).dur(10).start();
@@ -313,57 +336,6 @@ client.on('message', (topic, message) => {
 
 })
 
-function mm2px_x(value_mm){
 
-/*
-    // substract screen offset in mm from point zero on glass
-    if(client_id=="rtv1"){
-       var offset = 161;
-    } else  if(client_id=="rtv2"){
-       var offset = 1405;
-    } else  if(client_id=="rtv3"){
-       var offset = 2644;
-    }
-    value_mm = value_mm - offset;
-*/
+///////////////////////////////////////////////
 
-    return (value_mm - mm_screen_offset_from_mirror_x)  *  px_per_mm_x;      
-
-
-
-}
-
-function mm2px_y(value_mm){
-
-    return (value_mm - mm_screen_offset_from_mirror_y)  *  px_per_mm_y;      
-
-}
-
-////////////////////////
-
-gfx.start(function (err) {
-
-    if (err) {
-        console.log('Start failed: ' + err.message);
-        return;
-    }
-
-    root_group = this.createGroup();
-    this.setRoot(root_group);
-
- 
-
-
-  
-
-/*
-    //text
-    var text = this.createText().fill('#ff0000').opacity(1.0).x(100).y(200);
-
-    text.text('Sample Text');
-    text.opacity.anim().from(0.0).to(1.0).dur(1000).loop(-1).start();
-    root_group.add(text);
-
-  */
-
-});
