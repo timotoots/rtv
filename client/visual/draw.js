@@ -250,8 +250,8 @@ client.on('message', (topic, message) => {
 
             } // for
 
-            var coords_x = mm2px_x(map[28][0]);
-            var coords_y = mm2px_y(map[28][1]);
+            var coords_x = mm2px_x(map[3][0]);
+            var coords_y = mm2px_y(map[3][1]);
             all_face[el_id]["text"] =  gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text('FACE '+el_id).fontWeight(200);
             root_group.add(all_face[el_id]["text"]);
 
@@ -277,11 +277,13 @@ client.on('message', (topic, message) => {
 
             all_face[el_id]["landmarks"][i].x(coords_x);
             all_face[el_id]["landmarks"][i].y(coords_y);
+            // all_face[el_id]["landmarks"][i].opacity.anim().from(1).to(0).dur(3000).start();
+
 
         } // for
 
-        var coords_x = mm2px_x(map[28][0]);
-        var coords_y = mm2px_y(map[28][1]);
+        var coords_x = mm2px_x(map[3][0]);
+        var coords_y = mm2px_y(map[3][1]);
 
 
         // move text
@@ -292,11 +294,30 @@ client.on('message', (topic, message) => {
         // save for next time
         all_face[el_id]["last_landmarks_pos"] = map;
 
-  
+
+
+
+
+    } else if(topics[1] === 'face_text' && el_id) {
+
+
+        var msg = message.toString();
+
+
+         if(typeof all_face[el_id]["text"] != "undefined"){
+
+            all_face[el_id]["text"].text(msg);
+            console.log("NEW face text ID " + el_id + ": " +msg);
+
+         }
+
+
+
+    } else if(topics[1] === 'text' && el_id) {
+
 
 ///////////////////////////////////////////////////////////////////
 
-    } else if(topics[1] === 'text' && el_id) {
  
 
         if (typeof all_text[el_id] === "undefined") {
