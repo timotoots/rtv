@@ -238,7 +238,7 @@ client.on('message', (topic, message) => {
              ////////////////////////
              // register new face
 
-            all_face[el_id] = {"landmarks":[], "last_landmarks_pos":map};
+            all_face[el_id] = {"landmarks":[], "last_landmarks_pos":map, "movement_timer":{"x_history":[],"y_history":[],"game_status":0,"game_start_time":0}};
 
             for (var i = 0; i < map.length; i++) {
 
@@ -249,6 +249,8 @@ client.on('message', (topic, message) => {
 
 
             } // for
+
+
 
             var coords_x = mm2px_x(map[3][0]);
             var coords_y = mm2px_y(map[3][1]);
@@ -282,13 +284,87 @@ client.on('message', (topic, message) => {
 
         } // for
 
-        var coords_x = mm2px_x(map[3][0]);
-        var coords_y = mm2px_y(map[3][1]);
+
+
+        var coords_x = mm2px_x(map[0][0]);
+        var coords_y = mm2px_y(map[0][1]);
+        var movement_samples = 4;
+
+
+        all_face[el_id]["movement_timer"]["x_history"].unshift(coords_x);
+        all_face[el_id]["movement_timer"]["y_history"].unshift(coords_y);
+
+        // console.log(all_face[el_id]["movement_timer"]["x_history"]);
+
+        if(all_face[el_id]["movement_timer"]["x_history"].length>movement_samples){
+
+            all_face[el_id]["movement_timer"]["x_history"].pop();
+            all_face[el_id]["movement_timer"]["y_history"].pop();
+
+        }
+ 
+         // console.log(all_face[el_id]["movement_timer"]["x_history"]);
+
+        var total_x = 0;
+        var total_y = 0;
+        
+        for (var i = 0; i < all_face[el_id]["movement_timer"]["x_history"].length; i++) {
+            
+            total_x +=  all_face[el_id]["movement_timer"]["x_history"][i];
+            total_y +=  all_face[el_id]["movement_timer"]["y_history"][i];
+
+        }
+
+        var avg_x = total_x / all_face[el_id]["movement_timer"]["x_history"].length;
+        var avg_y = total_y / all_face[el_id]["movement_timer"]["y_history"].length;
+
+        if( Math.abs(avg_x - coords_x) > 100 || Math.abs(avg_y - coords_y) > 100){
+
+            all_face[el_id]["movement_timer"]["x_history"] = [];
+            all_face[el_id]["movement_timer"]["y_history"] = [];
+
+            if(all_face[el_id]["movement_timer"]["game_status"]==1){
+
+                var d = new Date();
+                var time_result = d.getTime() - all_face[el_id]["movement_timer"]["game_start_time"];
+
+                all_face[el_id]["text"].text("YOU MOVED, LOSER!" + time_result);
+                all_face[el_id]["movement_timer"]["game_status"] = 0;
+                console.log("MOVE!");
+                all_face[el_id]["movement_timer"]["game_start_time"]  = 0;
+
+            }
+
+        } else if(all_face[el_id]["movement_timer"]["x_history"].length >= movement_samples && all_face[el_id]["movement_timer"]["game_status"]==0) {
+
+            all_face[el_id]["movement_timer"]["game_status"] = 1;
+            console.log("game started!");
+            all_face[el_id]["text"].text("DON'T MOVE!");
+
+            
+            var d = new Date();
+            all_face[el_id]["movement_timer"]["game_start_time"] =  d.getTime();
+
+
+
+
+        } else if(all_face[el_id]["movement_timer"]["game_status"]==1) {
+               
+            var d = new Date();
+            var time_result = d.getTime() - all_face[el_id]["movement_timer"]["game_start_time"];
+            all_face[el_id]["text"].text("DON'T MOVE!\n" + time_result);
+
+
+        }
+
+        console.log(avg_x);
+
+
 
 
         // move text
         all_face[el_id]["text"].x(coords_x);
-        all_face[el_id]["text"].y(coords_y);
+        all_face[el_id]["text"].y(coords_y-30);
 
 
         // save for next time
