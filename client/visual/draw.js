@@ -35,7 +35,15 @@ var depth_i = 0;
     var  px_calib_y1 = 100;
     var  px_calib_y2 = 1000;
 
-    if(client_id=="rtv2"){
+    if(client_id=="rtv1"){
+
+        // in mm from mirror top
+        var mm_calib_x1 = 205;
+        var mm_calib_x2 = 1320;
+        var mm_calib_y1 = 210;
+        var mm_calib_y2 = 803;
+
+    } else if(client_id=="rtv2"){
 
         // in mm from mirror top
         var mm_calib_x1 = 1447;
@@ -43,14 +51,13 @@ var depth_i = 0;
         var mm_calib_y1 = 210;
         var mm_calib_y2 = 803;
 
-    } else {
+    } else if(client_id=="rtv3"){
 
-        // in mm
-        var mm_calib_x1 = 1447;
-        var mm_calib_x2 = 2563;
+        // in mm from mirror top
+        var mm_calib_x1 = 2691;
+        var mm_calib_x2 = 3807;
         var mm_calib_y1 = 210;
         var mm_calib_y2 = 803;
-
 
     }
 
