@@ -326,7 +326,7 @@ client.on('message', (topic, message) => {
          // draw box
  
 
-            if(games["square"]){
+            if(games["square"]==1){
 
             var coords_x_rect = mm2px_x(map[30][0])-100;
             var coords_y_rect = mm2px_y((map[19][1]+map[24][1])/2-50);
