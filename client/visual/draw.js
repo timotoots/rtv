@@ -2,7 +2,7 @@
 
 var os = require('os');
 var client_id = os.hostname();
-//var client_id = "rtv2";
+var client_id = "rtv1";
 
 var path = require('path');
 var amino = require('./aminogfx-gl/main.js');
@@ -12,6 +12,12 @@ var gfx = new amino.AminoGfx();
 // elements and their metadata
 var all_rect = [];
 var all_rect_pos = [];
+
+var all_img = [];
+var all_img_pos = [];
+
+
+
 var all_text = [];
 var all_text_pos = [];
 
@@ -178,6 +184,40 @@ client.on('message', (topic, message) => {
 
 ///////////////////////////////////////////////////////////////////
 
+    } if(topics[1] === 'image' && el_id) {
+
+    	// example message
+    	// topic: rtv_all/image/1
+    	// msg: 2000,300,http://192.168.22.100/zpromo/images/triibustik.png
+
+        if (typeof all_img[el_id] === "undefined") {
+
+            // create element
+            console.log("NEW image / ID:" + el_id);
+           
+            all_img[el_id] = gfx.createImageView().opacity(1.0).w(200).h(200);
+            root_group.add(all_img[el_id]);
+            all_img_pos[el_id] = [-1000,-1000];
+
+        }
+
+        var msg = message.toString();
+        var coords = msg.split(",");
+
+        coords[0] = mm2px_x(coords[0]);
+        coords[1] = mm2px_y(coords[1]);
+
+		all_img[el_id].src(coords[2]);
+       
+        all_img[el_id].x.anim().from(all_img_pos[el_id][0]).to(coords[0]).dur(1000).start();
+        all_img[el_id].y.anim().from(all_img_pos[el_id][1]).to(coords[1]).dur(1000).start();
+
+        all_img_pos[el_id] = coords;
+
+        console.log("MOVE image ID " + el_id + " / coords: " + coords);
+
+///////////////////////////////////////////////////////////////////
+
     } else if(topics[1] === 'poly' && el_id) {
  
 
@@ -238,7 +278,7 @@ client.on('message', (topic, message) => {
              ////////////////////////
              // register new face
 
-            all_face[el_id] = {"landmarks":[], "last_landmarks_pos":map, "movement_timer":{"x_history":[],"y_history":[],"game_status":0,"game_start_time":0}};
+            all_face[el_id] = {"landmarks":[], "last_landmarks_pos":map, "movement_timer":{"x_history":[],"y_history":[],"game_status":"standby","game_start_time":0}};
 
             for (var i = 0; i < map.length; i++) {
 
@@ -288,13 +328,18 @@ client.on('message', (topic, message) => {
 
         var coords_x = mm2px_x(map[0][0]);
         var coords_y = mm2px_y(map[0][1]);
-        var movement_samples = 4;
+     
+
+        //////////////////////////////////////////////////////////////////
+        /// Movement game
+
+	    var movement_samples = 4;
+        var movement_tolerance_mm = 100;
 
 
         all_face[el_id]["movement_timer"]["x_history"].unshift(coords_x);
         all_face[el_id]["movement_timer"]["y_history"].unshift(coords_y);
 
-        // console.log(all_face[el_id]["movement_timer"]["x_history"]);
 
         if(all_face[el_id]["movement_timer"]["x_history"].length>movement_samples){
 
@@ -303,7 +348,6 @@ client.on('message', (topic, message) => {
 
         }
  
-         // console.log(all_face[el_id]["movement_timer"]["x_history"]);
 
         var total_x = 0;
         var total_y = 0;
@@ -318,53 +362,51 @@ client.on('message', (topic, message) => {
         var avg_x = total_x / all_face[el_id]["movement_timer"]["x_history"].length;
         var avg_y = total_y / all_face[el_id]["movement_timer"]["y_history"].length;
 
-        if( Math.abs(avg_x - coords_x) > 100 || Math.abs(avg_y - coords_y) > 100){
+        if( Math.abs(avg_x - coords_x) > movement_tolerance_mm || Math.abs(avg_y - coords_y) > movement_tolerance_mm){
 
             all_face[el_id]["movement_timer"]["x_history"] = [];
             all_face[el_id]["movement_timer"]["y_history"] = [];
 
-            if(all_face[el_id]["movement_timer"]["game_status"]==1){
+            if(all_face[el_id]["movement_timer"]["game_status"]=="started"){
 
                 var d = new Date();
                 var time_result = d.getTime() - all_face[el_id]["movement_timer"]["game_start_time"];
+	      		time_result = Math.round(time_result/100);
 
-                all_face[el_id]["text"].text("YOU MOVED, LOSER!" + time_result);
-                all_face[el_id]["movement_timer"]["game_status"] = 0;
+                all_face[el_id]["text"].text("YOU MOVED, LOSER! " + time_result);
+                all_face[el_id]["movement_timer"]["game_status"] = "show_result";
                 console.log("MOVE!");
                 all_face[el_id]["movement_timer"]["game_start_time"]  = 0;
+                setTimeout(function(el_id){
+
+               		all_face[el_id]["movement_timer"]["game_status"] = "standby";
+
+                },5000,el_id);
 
             }
 
-        } else if(all_face[el_id]["movement_timer"]["x_history"].length >= movement_samples && all_face[el_id]["movement_timer"]["game_status"]==0) {
+        } else if(all_face[el_id]["movement_timer"]["x_history"].length >= movement_samples && all_face[el_id]["movement_timer"]["game_status"]=="standby") {
 
-            all_face[el_id]["movement_timer"]["game_status"] = 1;
+            all_face[el_id]["movement_timer"]["game_status"] = "started";
             console.log("game started!");
             all_face[el_id]["text"].text("DON'T MOVE!");
 
-            
             var d = new Date();
             all_face[el_id]["movement_timer"]["game_start_time"] =  d.getTime();
 
+			movement_timer(el_id);
 
 
-
-        } else if(all_face[el_id]["movement_timer"]["game_status"]==1) {
-               
-            var d = new Date();
-            var time_result = d.getTime() - all_face[el_id]["movement_timer"]["game_start_time"];
-            all_face[el_id]["text"].text("DON'T MOVE!\n" + time_result);
+        } 
 
 
-        }
-
-        console.log(avg_x);
-
+        ////////////////////////////////////////////
 
 
 
         // move text
         all_face[el_id]["text"].x(coords_x);
-        all_face[el_id]["text"].y(coords_y-30);
+        all_face[el_id]["text"].y(coords_y+300);
 
 
         // save for next time
@@ -433,6 +475,20 @@ client.on('message', (topic, message) => {
 
 })
 
+function movement_timer(id){
+
+	  if (all_face[id]["movement_timer"]["game_status"]=="started"){
+		  
+		  var d = new Date();
+	      var time_result = d.getTime() - all_face[id]["movement_timer"]["game_start_time"];
+	      time_result = Math.round(time_result/100);
+	      all_face[id]["text"].text("DON'T MOVE! " + time_result);
+
+	      setTimeout(movement_timer,100,id);
+
+      }
+
+}
 
 ///////////////////////////////////////////////
 
