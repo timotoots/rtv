@@ -10,7 +10,7 @@
      /opt/rtv/client/main.py &
 
 if [ "$HOSTNAME" = "rtv2" ]; then
-    /opt/rtv/client/sweep_xz.py &
+#    /opt/rtv/client/sweep_xz.py &
 fi
 
 
