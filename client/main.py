@@ -32,6 +32,15 @@ def on_message(client1, userdata, message):
 			print (output)
 			client1.publish(client_id + "/control_log/"+msg,output)
 
+                if msg == "shutdown":
+
+                        output = subprocess.Popen(["shutdown","now"], stdout=subprocess.PIPE).communicate()[0]
+                        output = output.decode("utf-8")
+                        print (output)
+                        client1.publish(client_id + "/control_log/"+msg,output)
+
+
+
 		if msg == "git_pull":
 
 
