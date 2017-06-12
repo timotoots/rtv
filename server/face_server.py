@@ -3,9 +3,13 @@ import dlib
 import numpy as np
 import paho.mqtt.client as paho
 from multiprocessing import Process, Queue, Array, Value
+from collections import defaultdict
 import time
 import math
 import argparse
+import os
+import SimpleHTTPServer
+import urlparse
 
 model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-47.7441823 , -46.76466   , -41.85545   ],
@@ -94,21 +98,23 @@ def get_camera_matrix(imageWidth, imageHeight):
 def capture(last_frame, done, args):
     print "Starting capture..."
 
-    if args.video_source == 'camera':
-        video_capture = cv2.VideoCapture(0)
-    elif args.video_source == 'url':
-        video_capture = cv2.VideoCapture(args.video_url)
-    else:
-        assert False
-    assert video_capture.isOpened()
-    #video_width = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-    #video_height = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
-    #video_fps = int(video_capture.get(cv2.cv.CV_CAP_PROP_FPS))
-    #print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
-
+    video_capture = cv2.VideoCapture()
     while not done.value:
         ret, img = video_capture.read()
-        assert ret
+        # handle video server restarts
+        if not ret:
+            if args.video_source == 'camera':
+                video_capture.open(0)
+            elif args.video_source == 'url':
+                video_capture.open(args.video_url)
+            else:
+                assert False
+            #assert video_capture.isOpened()
+            #video_width = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+            #video_height = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+            #video_fps = int(video_capture.get(cv2.cv.CV_CAP_PROP_FPS))
+            #print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
+            continue
         img = cv2.resize(img, (args.frame_width, args.frame_height))
         img = cv2.flip(img, 1)
         last_frame.raw = img.tostring()
@@ -127,9 +133,12 @@ def processing(last_frame, done, args):
 
     client1 = paho.Client(args.mqtt_name)     # create client object
     client1.connect(args.mqtt_host, args.mqtt_port)   # establish connection
+    client1.loop_start()
 
     fps_start =	time.time()
     fps_frames = 0
+
+    frame_counts = defaultdict(int)
 
     while True:
         img = np.frombuffer(last_frame.raw, dtype=np.uint8)
@@ -140,6 +149,10 @@ def processing(last_frame, done, args):
 
         # Draw a rectangle aroudn the faces (dlib)
         for i, rect in enumerate(faces):
+            #print rect.top(), rect.bottom(), rect.left(), rect.right()
+            if rect.left() < 0 or rect.right() > args.frame_width or \
+                    rect.top() < 0 or rect.bottom() > args.frame_height:
+                continue
             #x = rect.left()
             #y = rect.bottom()
             #w = rect.right() - rect.left()
@@ -147,48 +160,68 @@ def processing(last_frame, done, args):
             #cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
 
             landmarks = predictor(gray, rect)
-            landmarks = np.matrix([[p.x, p.y] for p in landmarks.parts()], dtype=np.float32)
-            for idx, pos in enumerate(landmarks):
-                # annotate the positions
-                #cv2.putText(img, str(idx), pos,
-                #            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                #            fontScale=0.4,
-                #            color=(0, 0, 255))
-                cv2.circle(img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+            landmarks = np.matrix([[p.x, p.y] for p in landmarks.parts()], dtype=np.int)
 
-            ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes], camera_matrix, None)
+            face_img = img[rect.top():rect.bottom(), rect.left():rect.right()].copy()
+            face_dir = 'person%02d' % (args.face_id_base + i + 1)
+            try:
+                os.mkdir(os.path.join(args.faces_dir, face_dir))
+            except:
+                pass
+            frame_counts[i] = (frame_counts[i] + 1) % args.num_frames
+            face_file = 'frame%03d.jpg' % frame_counts[i]
+            cv2.imwrite(os.path.join(args.faces_dir, face_dir, face_file), face_img)
+            face_landmarks = landmarks - (rect.left(), rect.top())
+
+            if args.display:
+                for idx, pos in enumerate(landmarks):
+                    # annotate the positions
+                    #cv2.putText(img, str(idx), pos,
+                    #            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                    #            fontScale=0.4,
+                    #            color=(0, 0, 255))
+                    cv2.circle(img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+
+                #for idx, pos in enumerate(face_landmarks):
+                #    cv2.circle(face_img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+                cv2.imshow('face%d' % (args.face_id_base + i + 1), face_img)
+
+            ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes].astype(np.float32), camera_matrix, None)
             assert ret
+
             if translation_vector[2] > 0:
-                #print "rotation_vector:", rotation_vector
-                #print "translation_vector:", translation_vector
-                #print "model_points:", model_points
-                #print "landmarks:", landmarks
-                translation_vector = translation_vector[:, 0]   # strip useless dimension
-                translation_vector = np.dot(translation_vector, camera_rotation)
-                translation_vector += (args.camera_x, args.camera_y, args.camera_z)
+                translation_vector = translation_vector[:, 0]                       # strip useless dimension
+                translation_vector = np.dot(translation_vector, camera_rotation)    # fix error from camera angle
+                translation_vector += (args.camera_x, args.camera_y, args.camera_z) # translate to global coordinates
 
                 #landmarks_mm = model_points + translation_vector
                 #cv2.putText(img, "x: %f, y: %f, z: %f" % tuple(translation_vector), (5, 25), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(0, 255, 0), thickness=1)
                 #ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_mm[:, :2].tolist())) # publish
 
+                # convert landmarks into relative coordinates and do then hacky conversion into mm
                 landmarks_mm = (landmarks - landmarks[30]) * 1.5 + translation_vector[:2]
 
                 if np.mean(landmarks_mm[:,0]) >= args.tv_left and np.mean(landmarks_mm[:,0]) <= args.tv_right:
                     ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_mm.tolist())) # publish
                     #ret = client1.publish("rtv_all/square/%d" % (args.face_id_base + i + 1), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
+                    ret = client1.publish("rtv_all/face_new/%d" % (args.face_id_base + i + 1), str([translation_vector.astype(np.int).tolist(), face_landmarks.tolist(), urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))])) # publish
 
+        if args.display:
+            fps_frames += 1
+            fps_elapsed	= time.time() -	fps_start
+            fps	= fps_frames / fps_elapsed
+            text = "FPS: %.2f" % fps
+            text_size, _ = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, thickness=1)
+            cv2.putText(img, text, (img.shape[1] - text_size[0]	- 5, img.shape[0]	- text_size[1]), fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, color=(255, 255,	255), thickness=1)
 
-        fps_frames += 1
-        fps_elapsed	= time.time() -	fps_start
-        fps	= fps_frames / fps_elapsed
-        text = "FPS: %.2f" % fps
-        text_size, _ = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, thickness=1)
-        cv2.putText(img, text, (img.shape[1] - text_size[0]	- 5, img.shape[0]	- text_size[1]), fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, color=(255, 255,	255), thickness=1)
+            if fps_frames == 10:
+                fps_frames = 0
+                fps_start = time.time()
 
-        cv2.imshow('img', img)
-        if cv2.waitKey(1) & 0xFF == 27:
-            done.value = 1
-            break
+            cv2.imshow('img', img)
+            if cv2.waitKey(1) & 0xFF == 27:
+                done.value = 1
+                break
 
     # When everything is done, release the capture
     cv2.destroyAllWindows()
@@ -203,6 +236,8 @@ if __name__ == '__main__':
     parser.add_argument("--camera_anglex", type=float, default=14)
     parser.add_argument("--camera_angley", type=float, default=-1.5)
     parser.add_argument("--camera_anglez", type=float, default=0)
+    parser.add_argument("--display", action="store_true", default=True)
+    parser.add_argument("--no_display", action="store_false", dest='display')
     parser.add_argument("--tv_left", type=int, default=0)
     parser.add_argument("--tv_right", type=int, default=1388)
     parser.add_argument("--mqtt_name", default='tm')
@@ -211,6 +246,9 @@ if __name__ == '__main__':
     parser.add_argument("--predictor_path", default='shape_predictor_68_face_landmarks.dat')
     parser.add_argument("--face_rec_model_path", default='dlib_face_recognition_resnet_model_v1.dat')    
     parser.add_argument("--dlib_upscale", type=int, default=0)
+    parser.add_argument("--faces_dir", default="faces")
+    parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
+    parser.add_argument("--num_frames", type=int, default=1000)
     parser.add_argument("--face_id_base", type=int, default=0)
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
