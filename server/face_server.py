@@ -204,7 +204,7 @@ def processing(last_frame, done, args):
                 if np.mean(landmarks_mm[:,0]) >= args.tv_left and np.mean(landmarks_mm[:,0]) <= args.tv_right:
                     ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_mm.tolist())) # publish
                     #ret = client1.publish("rtv_all/square/%d" % (args.face_id_base + i + 1), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
-                    ret = client1.publish("rtv_all/face_new/%d" % (args.face_id_base + i + 1), str([translation_vector.astype(np.int).tolist(), face_landmarks.tolist(), urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))])) # publish
+                    ret = client1.publish("rtv_all/face_new/%d" % (args.face_id_base + i + 1), str([translation_vector.astype(np.int).tolist(), face_landmarks.tolist(), landmarks_mm.astype(np.int).tolist(), urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))])) # publish
 
         if args.display:
             fps_frames += 1
