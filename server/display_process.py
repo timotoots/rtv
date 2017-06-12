@@ -3,167 +3,159 @@ import dlib
 import numpy as np
 import paho.mqtt.client as paho
 from multiprocessing import Process, Queue, Array, Value
+import time
+import argparse
 
-# dlib-based feature extraction
-JAWLINE_POINTS = list(range(0, 17))
-RIGHT_EYEBROW_POINTS = list(range(17, 22))
-LEFT_EYEBROW_POINTS = list(range(22, 27))
-NOSE_POINTS = list(range(27, 36))
-RIGHT_EYE_POINTS = list(range(36, 42))
-LEFT_EYE_POINTS = list(range(42, 48))
-MOUTH_OUTLINE_POINTS = list(range(48, 61))
-MOUTH_INNER_POINTS = list(range(61, 68))
+class Converter:
+    def __init__(self, args):
+        self.calib = np.array([
+            [
+                [
+                    (3270, 672),    # right 1m top in pixels
+                    (3056, 2264)    # right 1m bottom in pixels
+                ],
+                [
+                    (2437, 612),    # right 2m top in pixels
+                    (2374, 1471)    # right 2m bottom in pixels
+                ]
+            ],
+            [
+                [
+                    (-45, 672),     # left 1m top in pixels
+                    (216, 2270)     # left 1m bottom in pixels
+                ],
+                [
+                    (782, 629),     # left 2m top in pixels
+                    (865, 1485)     # left 2m bottom in pixels
+                ]
+            ]
+        ], dtype=np.float32)
+        # 1st RIGHT/LEFT, 2nd 1m/2m, 3rd upper/bottom, 4rd x/y
 
-calib = np.array([
-    [
-        [
-            (3270, 672),    # right 1m top in pixels
-            (3056, 2264)    # right 1m bottom in pixels
-        ],
-        [
-            (2437, 612),    # right 2m top in pixels
-            (2374, 1471)    # right 2m bottom in pixels
-        ]
-    ],
-    [
-        [
-            (-45, 672),     # left 1m top in pixels
-            (216, 2270)     # left 1m bottom in pixels
-        ],
-        [
-            (782, 629),     # left 2m top in pixels
-            (865, 1485)     # left 2m bottom in pixels
-        ]
-    ]
-], dtype=np.float32)
-# 1st RIGHT/LEFT, 2nd 1m/2m, 3rd upper/bottom, 4rd x/y
+        self.calib_width = 3280          # actual image width used for calibration
+        self.calib_height = 2464         # actual image height used for calibration
 
-calib_width = 3280          # actual image width used for calibration
-calib_height = 2464         # actual image height used for calibration
+        # flip calibration values
+        self.calib[:, :, :, 0] = self.calib_width - self.calib[:, :, :, 0]
+        self.calib = np.flipud(self.calib)
 
-#frame_width = 320           # camera frame width
-#frame_height = 240          # camera frame height
-frame_width = 640           # camera frame width
-frame_height = 480          # camera frame height
-#frame_width = 800           # camera frame width
-#frame_height = 600          # camera frame height
-#frame_width = 1296          # camera frame width
-#frame_height = 972          # camera frame height
+        # rescale calibration constants to frame size
+        self.calib[:, :, :, 0] *= float(args.frame_width) / self.calib_width
+        self.calib[:, :, :, 1] *= float(args.frame_height) / self.calib_height
+        #print self.calib
 
-# flip calibration values
-calib[:, :, :, 0] = calib_width - calib[:, :, :, 0]
-calib = np.flipud(calib)
+        self.Z1 = 1000.0                 # first depth 1m
+        self.Z2 = 2000.0                 # second depth 2m
 
-# rescale calibration constants to frame size
-calib[:, :, :, 0] *= float(frame_width) / calib_width
-calib[:, :, :, 1] *= float(frame_height) / calib_height
-#print calib
+        self.W1 = self.calib[0, 0, 0, 0] - self.calib[1, 0, 0, 0]  # width at 1m
+        self.W2 = self.calib[0, 1, 0, 0] - self.calib[1, 1, 0, 0]  # width at 2m
+        self.H1 = self.calib[1, 0, 1, 1] - self.calib[1, 0, 0, 1]  # height at 1m
+        self.H2 = self.calib[1, 1, 1, 1] - self.calib[1, 1, 0, 1]  # height at 2m
+        #print W1, H1, W2, H2
 
-Z1 = 1000.0                 # first depth 1m
-Z2 = 2000.0                 # second depth 2m
+        self.X1 = self.calib[1, 0, 0, 0]      # left at 1m
+        self.Y1 = self.calib[1, 0, 0, 1]      # top at 1m
+        self.X2 = self.calib[1, 1, 0, 0]      # left at 2m
+        self.Y2 = self.calib[1, 1, 0, 1]      # top at 2m
+        #print X1, Y1, X2, Y2
 
-W1 = calib[0, 0, 0, 0] - calib[1, 0, 0, 0]  # width at 1m
-W2 = calib[0, 1, 0, 0] - calib[1, 1, 0, 0]  # width at 2m
-H1 = calib[1, 0, 1, 1] - calib[1, 0, 0, 1]  # height at 1m
-H2 = calib[1, 1, 1, 1] - calib[1, 1, 0, 1]  # height at 2m
-#print W1, H1, W2, H2
+        self.SX = args.tv_left                # left of tv screen in mm
+        self.SY = args.tv_top                 # top of tv screen in mm
+        self.SW = args.tv_width               # width of tv screen in mm
+        self.SH = args.tv_height              # height of tv screen in mm
 
-X1 = calib[1, 0, 0, 0]      # left at 1m
-Y1 = calib[1, 0, 0, 1]      # top at 1m
-X2 = calib[1, 1, 0, 0]      # left at 2m
-Y2 = calib[1, 1, 0, 1]      # top at 2m
-#print X1, Y1, X2, Y2
+    # inputs: camera coordinates cx, cy, real depth rz
+    def convert(self, cx, cy, rz):
+        df = (rz - self.Z1) / (self.Z2 - self.Z1)
+        aw = self.W1 - df * (self.W1 - self.W2)
+        ah = self.H1 - df * (self.H1 - self.H2)
+        ax = self.X1 + df * (self.X2 - self.X1)
+        ay = self.Y1 + df * (self.Y2 - self.Y1)
+        #print df, aw, ah, ax, ay
 
-SX = 1388.0                 # left of tv screen in mm
-SY = 0.0                    # top of tv screen in mm
-SW = 1244.0                 # width of tv screen in mm
-SH = 677.0                  # height of tv screen in mm
+        rx = (cx - ax) * self.SW / aw + self.SX
+        ry = (cy - ay) * self.SH / ah + self.SY
+        #print cy, ay, SH, ah, SY
+        
+        return int(rx), int(ry)
 
-# inputs: camera coordinates cx, cy, real depth rz
-def convert(cx, cy, rz):
-    df = (rz - Z1) / (Z2 - Z1)
-    aw = W1 - df * (W1 - W2)
-    ah = H1 - df * (H1 - H2)
-    ax = X1 + df * (X2 - X1)
-    ay = Y1 + df * (Y2 - Y1)
-    #print df, aw, ah, ax, ay
-
-    rx = (cx - ax) * SW / aw + SX
-    ry = (cy - ay) * SH / ah + SY
-    #print cy, ay, SH, ah, SY
-    
-    return rx, ry
-
-def capture(last_frame, done):
+def capture(last_frame, done, args):
     print "Starting capture..."
 
-    #video_capture = cv2.VideoCapture(0)
-    video_capture = cv2.VideoCapture('http://192.168.22.22:5000/')
+    if args.video_source == 'camera':
+        video_capture = cv2.VideoCapture(0)
+    elif args.video_source == 'url':
+        video_capture = cv2.VideoCapture(args.video_url)
+    else:
+        assert False
     assert video_capture.isOpened()
+    #video_width = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+    #video_height = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+    #video_fps = int(video_capture.get(cv2.cv.CV_CAP_PROP_FPS))
+    #print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
 
     while not done.value:
-        #print "Reading frame..."
         ret, img = video_capture.read()
         assert ret
-        #img = cv2.imread('l1.jpg')
-        #print img.shape
-        img = cv2.resize(img, (frame_width, frame_height))
+        img = cv2.resize(img, (args.frame_width, args.frame_height))
         img = cv2.flip(img, 1)
         last_frame.raw = img.tostring()
 
     video_capture.release()
 
-def processing(last_frame, done):
+def processing(last_frame, done, args):
     print "Starting processing..."
 
+    converter = Converter(args)
+
     faces_dlib = dlib.get_frontal_face_detector()
-    predictor_path = 'shape_predictor_68_face_landmarks.dat'
-    predictor = dlib.shape_predictor(predictor_path)
+    predictor = dlib.shape_predictor(args.predictor_path)
 
-    broker = "192.168.22.20"
-    port = 1883
+    client1 = paho.Client(args.mqtt_name)     # create client object
+    client1.connect(args.mqtt_host, args.mqtt_port)   # establish connection
 
-    client1 = paho.Client("tm")     # create client object
-    client1.connect(broker, port)   # establish connection
+    fps_start =	time.time()
+    fps_frames = 0
 
     while True:
         img = np.frombuffer(last_frame.raw, dtype=np.uint8)
-        img = img.reshape((frame_height, frame_width, 3))
-        #print img.shape
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = img.reshape((args.frame_height, args.frame_width, 3))
 
-        detected_faces_dlib = faces_dlib(gray, 1)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = faces_dlib(gray, args.dlib_upscale)
 
         # Draw a rectangle aroudn the faces (dlib)
-        for i, d in enumerate(detected_faces_dlib):
-            x = d.left()
-            y = d.bottom()
-            w = d.right() - d.left()
-            h = d.top() - d.bottom()
+        for i, rect in enumerate(faces):
+            x = rect.left()
+            y = rect.bottom()
+            w = rect.right() - rect.left()
+            h = rect.top() - rect.bottom()
             cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
 
-            #rx, ry = convert(d.left(), d.top(), 2000)
-            #ret = client1.publish("rtv2/square/1", "%d,%d" % (rx, ry)) # publish
-            #rx, ry = convert(d.right(), d.bottom(), 2000)
-            #ret = client1.publish("rtv2/square/2", "%d,%d" % (rx, ry)) # publish
+            rx, ry = converter.convert(rect.left(), rect.top(), 2000)
+            ret = client1.publish("rtv_all/square/1", "%d,%d" % (rx, ry)) # publish
+            rx, ry = converter.convert(rect.right(), rect.bottom(), 2000)
+            ret = client1.publish("rtv_all/square/2", "%d,%d" % (rx, ry)) # publish
 
-            dlib_rect = dlib.rectangle(d.left(), d.top(), d.right(), d.bottom())
-            detected_landmarks = predictor(gray, dlib_rect).parts()
-
-            landmarks = np.matrix([[p.x, p.y] for p in detected_landmarks])
-            landmarks_display = landmarks #[RIGHT_EYE_POINTS + LEFT_EYE_POINTS]
+            facial_landmarks = predictor(gray, rect)
 
             landmarks_list = []
-            for idx, point in enumerate(landmarks_display):
-                pos = (point[0, 0], point[0, 1])
+            for idx, p in enumerate(facial_landmarks.parts()):
                 # annotate the positions
                 #cv2.putText(img, str(idx), pos,
                 #            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                 #            fontScale=0.4,
                 #            color=(0, 0, 255))
-                cv2.circle(img, pos, 2, color=(0, 255, 255), thickness=-1)
-                landmarks_list.append(list(convert(pos[0], pos[1], 2000)))
-            ret = client1.publish("rtv2/face/%d" % (i + 1), str(landmarks_list)) # publish
+                cv2.circle(img, (p.x, p.y), 2, color=(0, 255, 255), thickness=-1)
+                landmarks_list.append(list(converter.convert(p.x, p.y, 2000)))
+            ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_list)) # publish
+
+        fps_frames += 1
+        fps_elapsed	= time.time() -	fps_start
+        fps	= fps_frames / fps_elapsed
+        text = "FPS: %.2f" % fps
+        text_size, _ = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, thickness=1)
+        cv2.putText(img, text, (img.shape[1] - text_size[0]	- 5, img.shape[0]	- text_size[1]), fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, color=(255, 255,	255), thickness=1)
 
         '''        
         cv2.line(img, tuple(calib[0,0,0]), tuple(calib[0,0,1]), (255, 255, 255), 2)
@@ -193,17 +185,37 @@ def processing(last_frame, done):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    img = np.empty((frame_height, frame_width, 3), dtype=np.uint8)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--frame_width", type=int, default=1296)
+    parser.add_argument("--frame_height", type=int, default=972)
+    parser.add_argument("--tv_left", type=float, default=1388.0)
+    parser.add_argument("--tv_top", type=float, default=0.0)
+    parser.add_argument("--tv_width", type=float, default=1244.0)
+    parser.add_argument("--tv_height", type=float, default=677.0)
+    parser.add_argument("--mqtt_name", default='tm')
+    parser.add_argument("--mqtt_host", default='192.168.22.20')
+    parser.add_argument("--mqtt_port", type=int, default=1883)
+    parser.add_argument("--predictor_path", default='shape_predictor_68_face_landmarks.dat')
+    parser.add_argument("--dlib_upscale", type=int, default=0)
+    parser.add_argument("--face_id_base", type=int, default=0)
+    parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
+    parser.add_argument("--video_url", default='http://192.168.22.22:5000/?nopreview=')
+    args = parser.parse_args()
+    
+    # set up interprocess communication buffers
+    img = np.zeros((args.frame_height, args.frame_width, 3), dtype=np.uint8)
     buf = img.tostring()
     last_frame = Array('c', len(buf))
     last_frame.raw = buf
     done = Value('i', 0)
 
-    c = Process(name='capture', target=capture, args=(last_frame, done))
+    # launch processes
+    c = Process(name='capture', target=capture, args=(last_frame, done, args))
     c.start()
 
-    p = Process(name='processing', target=processing, args=(last_frame, done))
+    p = Process(name='processing', target=processing, args=(last_frame, done, args))
     p.start()
 
+    # wait for processes to finish
     p.join()
     c.join()
