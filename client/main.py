@@ -8,6 +8,7 @@ import socket
 broker = "192.168.22.20"
 port = 1883
 client_id = socket.gethostname()
+client_id = client_id + "_main"
 print(client_id)
 
 def on_message(client1, userdata, message):

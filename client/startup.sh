@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Startup script for RTV server
+# Startup script for RTV client
 
 #while true; do
 
