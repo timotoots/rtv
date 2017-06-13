@@ -641,7 +641,7 @@ function draw_img(faceframe){
 
         faces[faceframe.id]["el"]["image"] = gfx.createImageView().opacity(1.0);
         root_group.add(faces[faceframe.id]["el"]["image"]);
-        console.log("NEW image / FACE_ID:" + faceframe.id +" " + faceframe.face_image_url);
+        console.log("NEW image / FACE_ID:" + faceframe.id);
 
 
     } 
@@ -656,7 +656,7 @@ function draw_img(faceframe){
     faces[faceframe.id]["el"]["image"].x(coords[0]);
     faces[faceframe.id]["el"]["image"].y(coords[1]);
 
-    console.log("MOVE image / FACE_ID:" + faceframe.id + " x:" + coords[0] + " y:" + coords[1]);
+    console.log("MOVE image / FACE_ID:" + faceframe.id + " x:" + coords[0] + " y:" + coords[1] +" " + faceframe.face_image_url);
 
 
 
