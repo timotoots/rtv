@@ -129,7 +129,7 @@ def capture(last_frame, done, args):
 def processing(last_frame, done, args):
     print "Starting processing..."
 
-    faces_dlib = dlib.get_frontal_face_detector()
+    detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor(args.predictor_path)
     facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
@@ -144,25 +144,36 @@ def processing(last_frame, done, args):
     fps_frames = 0
 
     frame_counts = defaultdict(int)
+    i = 0
 
     while True:
         img = np.frombuffer(last_frame.raw, dtype=np.uint8)
         img = img.reshape((args.frame_height, args.frame_width, 3))
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = faces_dlib(gray, args.dlib_upscale)
+        # after every args.tracking_frames do full face detection
+        if i == 0 or not args.tracking_frames:
+            faces = detector(gray, args.dlib_upscale)
+            if args.tracking_frames:
+                trackers = []
+                for rect in faces:
+                    tracker = dlib.correlation_tracker()
+                    tracker.start_track(gray, rect)
+                    trackers.append(tracker)
+        else:
+            faces = []
+            for tracker in trackers:
+                tracker.update(gray)
+                pos = tracker.get_position()
+                rect = dlib.rectangle(int(pos.left()), int(pos.top()), int(pos.right()), int(pos.bottom()))
+                faces.append(rect)
 
-        # Draw a rectangle aroudn the faces (dlib)
+        # Draw a rectangle around the faces (dlib)
         for rect in faces:
             #print rect.top(), rect.bottom(), rect.left(), rect.right()
             if rect.left() < 0 or rect.right() > args.frame_width or \
                     rect.top() < 0 or rect.bottom() > args.frame_height:
                 continue
-            #x = rect.left()
-            #y = rect.bottom()
-            #w = rect.right() - rect.left()
-            #h = rect.top() - rect.bottom()
-            #cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
 
             landmarks = predictor(gray, rect)
             face_descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
@@ -194,18 +205,14 @@ def processing(last_frame, done, args):
                 os.mkdir(os.path.join(args.faces_dir, face_dir))
             except:
                 pass
-            frame_counts[face_id] = (frame_counts[face_id] + 1) % args.num_frames
+            frame_counts[face_id] = (frame_counts[face_id] + 1) % args.save_frames
             face_file = 'frame%03d.jpg' % frame_counts[face_id]
             cv2.imwrite(os.path.join(args.faces_dir, face_dir, face_file), face_img)
             face_landmarks = landmarks - (left, top)
 
             if args.display:
+                cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if i == 0 else (0, 255, 0), thickness=2)
                 for idx, pos in enumerate(landmarks):
-                    # annotate the positions
-                    #cv2.putText(img, str(idx), pos,
-                    #            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                    #            fontScale=0.4,
-                    #            color=(0, 0, 255))
                     cv2.circle(img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
                 for idx, pos in enumerate(face_landmarks):
                     cv2.circle(face_img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
@@ -218,10 +225,6 @@ def processing(last_frame, done, args):
                 translation_vector = translation_vector[:, 0]                       # strip useless dimension
                 translation_vector = np.dot(translation_vector, camera_rotation)    # fix error from camera angle
                 translation_vector += (args.camera_x, args.camera_y, args.camera_z) # translate to global coordinates
-
-                #landmarks_mm = model_points + translation_vector
-                #cv2.putText(img, "x: %f, y: %f, z: %f" % tuple(translation_vector), (5, 25), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(0, 255, 0), thickness=1)
-                #ret = client1.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm[:, :2].tolist())) # publish
 
                 # convert landmarks into relative coordinates and do then hacky conversion into mm
                 landmarks_mm = (landmarks - landmarks[30]) * 1.5 + translation_vector[:2]
@@ -252,6 +255,9 @@ def processing(last_frame, done, args):
                             'frame_id': '%03d' % frame_counts[face_id],
                             'face_image_url': urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))})) # publish
 
+        if args.tracking_frames:
+            i = (i + 1) % args.tracking_frames
+
         fps_frames += 1
         fps_elapsed	= time.time() -	fps_start
         fps	= fps_frames / fps_elapsed
@@ -259,7 +265,7 @@ def processing(last_frame, done, args):
         sys.stdout.flush()
 
         if args.display:
-            text = "FPS: %.2f" % fps
+            text = "FPS: %.2f, frames: %d, elapsed: %f" % (fps, fps_frames, fps_elapsed)
             text_size, _ = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, thickness=1)
             cv2.putText(img, text, (img.shape[1] - text_size[0]	- 5, img.shape[0]	- text_size[1]), fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, color=(255, 255,	255), thickness=1)
 
@@ -268,7 +274,7 @@ def processing(last_frame, done, args):
                 done.value = 1
                 break
 
-        if fps_frames == 10:
+        if fps_frames == args.fps_frames:
             fps_frames = 0
             fps_start = time.time()
 
@@ -298,7 +304,9 @@ if __name__ == '__main__':
     parser.add_argument("--dlib_upscale", type=int, default=0)
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
-    parser.add_argument("--num_frames", type=int, default=1000)
+    parser.add_argument("--save_frames", type=int, default=1000)
+    parser.add_argument("--tracking_frames", type=int, default=1)
+    parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
