@@ -10,6 +10,9 @@ import argparse
 import os
 import SimpleHTTPServer
 import urlparse
+import json
+import sys
+import requests
 
 model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-47.7441823 , -46.76466   , -41.85545   ],
@@ -109,11 +112,13 @@ def capture(last_frame, done, args):
                 video_capture.open(args.video_url)
             else:
                 assert False
-            #assert video_capture.isOpened()
-            #video_width = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-            #video_height = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
-            #video_fps = int(video_capture.get(cv2.cv.CV_CAP_PROP_FPS))
-            #print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
+            '''
+            if video_capture.isOpened():
+                video_width = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+                video_height = int(video_capture.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+                video_fps = int(video_capture.get(cv2.cv.CV_CAP_PROP_FPS))
+                print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
+            '''
             continue
         img = cv2.resize(img, (args.frame_width, args.frame_height))
         img = cv2.flip(img, 1)
@@ -126,7 +131,7 @@ def processing(last_frame, done, args):
 
     faces_dlib = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor(args.predictor_path)
-    #facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
+    facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
     camera_matrix = get_camera_matrix(args.frame_width, args.frame_height)
     camera_rotation = eulerAnglesToRotationMatrix((np.radians(args.camera_anglex), np.radians(args.camera_angley), np.radians(args.camera_anglez)))
@@ -148,7 +153,7 @@ def processing(last_frame, done, args):
         faces = faces_dlib(gray, args.dlib_upscale)
 
         # Draw a rectangle aroudn the faces (dlib)
-        for i, rect in enumerate(faces):
+        for rect in faces:
             #print rect.top(), rect.bottom(), rect.left(), rect.right()
             if rect.left() < 0 or rect.right() > args.frame_width or \
                     rect.top() < 0 or rect.bottom() > args.frame_height:
@@ -160,18 +165,39 @@ def processing(last_frame, done, args):
             #cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 255), 2)
 
             landmarks = predictor(gray, rect)
+            face_descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
+            #print np.array(face_descriptor)
+            r = requests.post(args.face_nn_url, json=list(face_descriptor))
+            if r.status_code == 200:
+                face_id = int(r.text)
+            else:
+                face_id = 999999
             landmarks = np.matrix([[p.x, p.y] for p in landmarks.parts()], dtype=np.int)
 
-            face_img = img[rect.top():rect.bottom(), rect.left():rect.right()].copy()
-            face_dir = 'person%02d' % (args.face_id_base + i + 1)
+            #print landmarks.shape, np.min(landmarks, axis=0).shape
+            min_xy = np.min(landmarks, axis=0)
+            min_x = min_xy[0, 0]
+            min_y = min_xy[0, 1]
+            max_xy = np.max(landmarks, axis=0)
+            max_x = max_xy[0, 0]
+            max_y = max_xy[0, 1]
+            width = max_x - min_x
+            height = max_y - min_y
+            left = max(min_x - width // 5, 0)
+            right = min(max_x + width // 5, args.frame_width - 1)
+            top = max(min_y - height, 0)
+            bottom = min(max_y + height // 5, args.frame_height - 1)
+
+            face_img = img[top:bottom, left:right].copy()
+            face_dir = 'person%02d' % (face_id)
             try:
                 os.mkdir(os.path.join(args.faces_dir, face_dir))
             except:
                 pass
-            frame_counts[i] = (frame_counts[i] + 1) % args.num_frames
-            face_file = 'frame%03d.jpg' % frame_counts[i]
+            frame_counts[face_id] = (frame_counts[face_id] + 1) % args.num_frames
+            face_file = 'frame%03d.jpg' % frame_counts[face_id]
             cv2.imwrite(os.path.join(args.faces_dir, face_dir, face_file), face_img)
-            face_landmarks = landmarks - (rect.left(), rect.top())
+            face_landmarks = landmarks - (left, top)
 
             if args.display:
                 for idx, pos in enumerate(landmarks):
@@ -181,10 +207,9 @@ def processing(last_frame, done, args):
                     #            fontScale=0.4,
                     #            color=(0, 0, 255))
                     cv2.circle(img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
-
-                #for idx, pos in enumerate(face_landmarks):
-                #    cv2.circle(face_img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
-                cv2.imshow('face%d' % (args.face_id_base + i + 1), face_img)
+                for idx, pos in enumerate(face_landmarks):
+                    cv2.circle(face_img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+                cv2.imshow('face%d' % (face_id), face_img)
 
             ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes].astype(np.float32), camera_matrix, None)
             assert ret
@@ -196,34 +221,59 @@ def processing(last_frame, done, args):
 
                 #landmarks_mm = model_points + translation_vector
                 #cv2.putText(img, "x: %f, y: %f, z: %f" % tuple(translation_vector), (5, 25), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(0, 255, 0), thickness=1)
-                #ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_mm[:, :2].tolist())) # publish
+                #ret = client1.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm[:, :2].tolist())) # publish
 
                 # convert landmarks into relative coordinates and do then hacky conversion into mm
                 landmarks_mm = (landmarks - landmarks[30]) * 1.5 + translation_vector[:2]
 
                 if np.mean(landmarks_mm[:,0]) >= args.tv_left and np.mean(landmarks_mm[:,0]) <= args.tv_right:
-                    ret = client1.publish("rtv_all/face/%d" % (args.face_id_base + i + 1), str(landmarks_mm.tolist())) # publish
-                    #ret = client1.publish("rtv_all/square/%d" % (args.face_id_base + i + 1), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
-                    ret = client1.publish("rtv_all/face_new/%d" % (args.face_id_base + i + 1), str([translation_vector.astype(np.int).tolist(), face_landmarks.tolist(), landmarks_mm.astype(np.int).tolist(), urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))])) # publish
+
+                    min_xy = np.min(landmarks_mm, axis=0)
+                    min_x = min_xy[0, 0]
+                    min_y = min_xy[0, 1]
+                    max_xy = np.max(landmarks_mm, axis=0)
+                    max_x = max_xy[0, 0]
+                    max_y = max_xy[0, 1]
+                    width = max_x - min_x
+                    height = max_y - min_y
+                    left = min_x - width // 5
+                    right = max_x + width // 5
+                    top = min_y - height
+                    bottom = max_y + height // 5
+
+                    ret = client1.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
+                    #ret = client1.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
+                    ret = client1.publish("rtv_all/face_new/%d" % (face_id), json.dumps({
+                            'nose_global_mm': translation_vector.astype(np.int).tolist(),
+                            'faceimg_global_mm': [left, top, right, bottom],
+                            'landmarks_faceimg_px': face_landmarks.tolist(),
+                            'landmarks_global_mm': landmarks_mm.astype(np.int).tolist(), 
+                            'face_id': (face_id),
+                            'frame_id': '%03d' % frame_counts[face_id],
+                            'face_image_url': urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))})) # publish
+
+        fps_frames += 1
+        fps_elapsed	= time.time() -	fps_start
+        fps	= fps_frames / fps_elapsed
+        print "\rFPS: %.2f" % fps,
+        sys.stdout.flush()
 
         if args.display:
-            fps_frames += 1
-            fps_elapsed	= time.time() -	fps_start
-            fps	= fps_frames / fps_elapsed
             text = "FPS: %.2f" % fps
             text_size, _ = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, thickness=1)
             cv2.putText(img, text, (img.shape[1] - text_size[0]	- 5, img.shape[0]	- text_size[1]), fontFace=cv2.FONT_HERSHEY_SIMPLEX,	fontScale=0.5, color=(255, 255,	255), thickness=1)
-
-            if fps_frames == 10:
-                fps_frames = 0
-                fps_start = time.time()
 
             cv2.imshow('img', img)
             if cv2.waitKey(1) & 0xFF == 27:
                 done.value = 1
                 break
 
-    # When everything is done, release the capture
+        if fps_frames == 10:
+            fps_frames = 0
+            fps_start = time.time()
+
+    # When everything is done
+    client1.loop_stop()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
@@ -249,7 +299,7 @@ if __name__ == '__main__':
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
     parser.add_argument("--num_frames", type=int, default=1000)
-    parser.add_argument("--face_id_base", type=int, default=0)
+    parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
     args = parser.parse_args()

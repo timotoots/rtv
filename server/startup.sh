@@ -10,9 +10,12 @@
 
 # start face servers
 cd /opt/rtv/server
-./rtv1.sh &
-./rtv2.sh &
-./rtv3.sh &
+./rtv1.sh --no_display &
+./rtv2.sh --no_display &
+./rtv3.sh --no_display &
+
+# nearest neighbor server
+python nn_server.py &
 
 # start image server
 cd faces
