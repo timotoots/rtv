@@ -32,13 +32,13 @@ var games = {"square":0,"movement":0,"dots":0};
 
 
 if(client_id=="rtv1"){
-    games["square"] = 1;
+    games["square"] = 0;
 }
 if(client_id=="rtv2"){
-    games["movement"] = 1;
+    games["movement"] = 0;
 }
 if(client_id=="rtv3"){
-    games["dots"] = 1;
+    games["dots"] =0;
 }
 
 
