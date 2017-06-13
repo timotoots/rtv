@@ -17,6 +17,8 @@ var all_img = [];
 var all_img_pos = [];
 
 
+var faces = [];
+
 
 var all_text = [];
 var all_text_pos = [];
@@ -283,8 +285,34 @@ client.on('message', (topic, message) => {
     } else if(topics[1] === 'face' && el_id) {
 
 
+    } else if(topics[1] === 'face_new' && el_id) {
+
+        // parse message
         var msg = message.toString();
-        var map = JSON.parse(msg);
+        var faceframe = JSON.parse(msg);       
+        faceframe.id = faceframe.face_id;
+
+
+
+        if(typeof faces[faceframe.id] === "undefined"){
+
+            faces[faceframe.id] = { "history":[ faceframe ], "el":{} };
+
+        } else {
+            
+            faces[faceframe.id]["history"].push(faceframe);
+
+        }
+
+        draw_img(faceframe);
+        
+        draw_facepoly(faceframe);
+    
+
+        //////////////////////////
+        
+        var map = faceframe.landmarks_global_mm;
+
         var bar_width = 5;
 
          if(typeof  all_face[el_id] === "undefined"){
@@ -312,6 +340,8 @@ client.on('message', (topic, message) => {
 
              } // dots
 
+
+
             var coords_x = mm2px_x(map[3][0]);
             var coords_y = mm2px_y(map[3][1]);
             all_face[el_id]["text"] =  gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text('').fontWeight(200);
@@ -326,7 +356,7 @@ client.on('message', (topic, message) => {
          // draw box
  
 
-            if(games["square"]==1){
+        if(games["square"]==1){
 
             var coords_x_rect = mm2px_x(map[30][0])-100;
             var coords_y_rect = mm2px_y((map[19][1]+map[24][1])/2-50);
@@ -389,33 +419,33 @@ client.on('message', (topic, message) => {
 
         } // games dots
 
-            
-            if(all_face[el_id]["hidden"] == 1){
-    
-                 all_face[el_id]["text"].opacity(1);
-                 all_face[el_id]["hidden"] = 0;
+        
+        if(all_face[el_id]["hidden"] == 1){
+
+             all_face[el_id]["text"].opacity(1);
+             all_face[el_id]["hidden"] = 0;
+        }
+
+
+        clearTimeout(all_face[el_id]["hide_timer"]);
+
+        all_face[el_id]["hide_timer"] = setTimeout(function(el_id){
+
+            if(games["dots"]==1){
+
+                for (var i = 0; i < map.length; i++) {
+                    all_face[el_id]["landmarks"][i].opacity(0);
+                 }
+
             }
 
-
-            clearTimeout(all_face[el_id]["hide_timer"]);
-
-            all_face[el_id]["hide_timer"] = setTimeout(function(el_id){
-
-                if(games["dots"]==1){
-
-                    for (var i = 0; i < map.length; i++) {
-                        all_face[el_id]["landmarks"][i].opacity(0);
-                     }
-
-                }
-
-                all_face[el_id]["text"].opacity(0);
+            all_face[el_id]["text"].opacity(0);
 
 
-                all_face[el_id]["hidden"] = 1;
-              
+            all_face[el_id]["hidden"] = 1;
+          
 
-            },500,el_id);
+        },500,el_id);
 
      
 
@@ -502,8 +532,8 @@ client.on('message', (topic, message) => {
         ////////////////////////////////////////////
 
 
-            var coords_x = mm2px_x(map[30][0])-200;
-            var coords_y = mm2px_y(map[30][1]);
+        var coords_x = mm2px_x(map[30][0])-200;
+        var coords_y = mm2px_y(map[30][1]);
 
         // move text
         all_face[el_id]["text"].x(coords_x);
@@ -591,5 +621,85 @@ function movement_timer(id){
 
 }
 
+function check_move(faceframe){
+
+    if(typeof faces[faceframe.id]["movement"] === "undefined"){
+
+
+
+
+    }
+
+}
+
 ///////////////////////////////////////////////
+
+function draw_img(faceframe){
+
+
+    if(typeof faces[faceframe.id]["el"]["image"] === "undefined"){
+
+        faces[faceframe.id]["el"]["image"] = gfx.createImageView().opacity(1.0);
+        root_group.add(faces[faceframe.id]["el"]["image"]);
+        console.log("NEW image / FACE_ID:" + faceframe.id +" " + faceframe.face_image_url);
+
+
+    } 
+
+    faces[faceframe.id]["el"]["image"].src(faceframe.face_image_url);
+
+
+    var coords = [];
+    coords[0] = mm2px_x(faceframe.landmarks_global_mm[0][0]);
+    coords[1] = 10;
+
+    faces[faceframe.id]["el"]["image"].x(coords[0]);
+    faces[faceframe.id]["el"]["image"].y(coords[1]);
+
+    console.log("MOVE image / FACE_ID:" + faceframe.id + " x:" + coords[0] + " y:" + coords[1]);
+
+
+
+
+} // draw img
+
+
+///////////////////////////////////////////////
+
+
+function draw_facepoly(faceframe){
+
+   
+    if(typeof faces[faceframe.id]["el"]["facepoly"] === "undefined"){
+
+        faces[faceframe.id]["el"]["facepoly"] = gfx.createPolygon().opacity(1.0).fill("#FFFFFF");
+        root_group.add(faces[faceframe.id]["el"]["facepoly"]);
+        console.log("NEW facepoly / FACE_ID:" + faceframe.id);
+
+    } 
+
+    var geometry = [];
+
+    for (var i = 0; i <= 16; i++) {
+        geometry.push(faceframe.landmarks_global_mm[i]);
+    }
+
+    for (var i = 26; i >= 17; i--) {
+        geometry.push(faceframe.landmarks_global_mm[i]);
+    }
+
+    var geometry2 = [];
+
+    for (var i = 0; i < geometry.length; i++) {
+        geometry2.push(mm2px_x(geometry[i][0]));
+        geometry2.push(mm2px_y(geometry[i][1]));
+    }
+
+    faces[faceframe.id]["el"]["facepoly"].geometry(geometry2);
+
+    console.log("MOVE facepoly / FACE_ID:" + faceframe.id + " geometry:" + geometry2);
+
+
+}
+
 
