@@ -14,6 +14,12 @@ import json
 import sys
 import requests
 
+# general idea of estimating the distance to nose using reference 3D face
+# http://www.learnopencv.com/head-pose-estimation-using-opencv-and-dlib/
+# how to use cv2.solvePnP to estimate 3D location
+# https://www.youtube.com/watch?v=bV-jAnQ-tvw
+
+# adapted from Basel Face Model (MPEG4_FDP_face05.fp): http://faces.cs.unibas.ch/bfm/main.php?nav=1-1-0&id=details
 model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-47.7441823 , -46.76466   , -41.85545   ],
        [-37.4883323 , -52.01641   , -30.879     ],
@@ -58,10 +64,13 @@ model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-11.9570603 ,  42.94222333, -23.244     ],
        [-21.8388323 ,  40.95529   , -28.30023333]])
 
+# correspondence between dlib landmarks and MPEG-4 Facial Feature Points based on:
+# http://visagetechnologies.com/mpeg-4-face-and-body-animation/
 landmark_indexes = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
        34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
        51, 52, 53, 54, 55, 56, 57, 58, 59]
 
+# from https://www.learnopencv.com/rotation-matrix-to-euler-angles/
 def eulerAnglesToRotationMatrix(theta) :
      
     R_x = np.array([[1,         0,                  0                   ],
@@ -134,11 +143,16 @@ def processing(last_frame, done, args):
     facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
     camera_matrix = get_camera_matrix(args.frame_width, args.frame_height)
+    dist_coefs = None
+    if args.calibration_file:
+        calibration_data = np.load(args.calibration_file)
+        camera_matrix = calibration_data['camera_matrix']
+        dist_coefs = calibration_data['dist_coefs']
     camera_rotation = eulerAnglesToRotationMatrix((np.radians(args.camera_anglex), np.radians(args.camera_angley), np.radians(args.camera_anglez)))
 
-    client1 = paho.Client(args.mqtt_name)     # create client object
-    client1.connect(args.mqtt_host, args.mqtt_port)   # establish connection
-    client1.loop_start()
+    mqtt = paho.Client(args.mqtt_name)     # create client object
+    mqtt.connect(args.mqtt_host, args.mqtt_port)   # establish connection
+    mqtt.loop_start()
 
     fps_start =	time.time()
     fps_frames = 0
@@ -155,12 +169,14 @@ def processing(last_frame, done, args):
         if i == 0 or not args.tracking_frames:
             faces = detector(gray, args.dlib_upscale)
             if args.tracking_frames:
+                # set up trackers
                 trackers = []
                 for rect in faces:
                     tracker = dlib.correlation_tracker()
                     tracker.start_track(gray, rect)
                     trackers.append(tracker)
         else:
+            # detect faces using tracker
             faces = []
             for tracker in trackers:
                 tracker.update(gray)
@@ -168,30 +184,31 @@ def processing(last_frame, done, args):
                 rect = dlib.rectangle(int(pos.left()), int(pos.top()), int(pos.right()), int(pos.bottom()))
                 faces.append(rect)
 
-        # Draw a rectangle around the faces (dlib)
+        # loop over faces
         for rect in faces:
             #print rect.top(), rect.bottom(), rect.left(), rect.right()
-            if rect.left() < 0 or rect.right() > args.frame_width or \
-                    rect.top() < 0 or rect.bottom() > args.frame_height:
+            # ignore faces that are partially outside of image
+            if rect.left() < 0 or rect.right() >= args.frame_width or \
+                    rect.top() < 0 or rect.bottom() >= args.frame_height:
                 continue
 
+            # detect landmarks from (grayscale) image
             landmarks = predictor(gray, rect)
-            face_descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
-            #print np.array(face_descriptor)
-            r = requests.post(args.face_nn_url, json=list(face_descriptor))
+            # compute face descriptor from (color!) image
+            descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
+
+            # ask nearest neighbor server for identity of this face descriptor
+            r = requests.post(args.face_nn_url, json=list(descriptor))
             if r.status_code == 200:
                 face_id = int(r.text)
             else:
                 face_id = 999999
-            landmarks = np.matrix([[p.x, p.y] for p in landmarks.parts()], dtype=np.int)
+            # convert landmarks to numpy array
+            landmarks = np.array([[p.x, p.y] for p in landmarks.parts()])
 
-            #print landmarks.shape, np.min(landmarks, axis=0).shape
-            min_xy = np.min(landmarks, axis=0)
-            min_x = min_xy[0, 0]
-            min_y = min_xy[0, 1]
-            max_xy = np.max(landmarks, axis=0)
-            max_x = max_xy[0, 0]
-            max_y = max_xy[0, 1]
+            # enlarge face dimensions to get full face
+            min_x, min_y = np.min(landmarks, axis=0)
+            max_x, max_y = np.max(landmarks, axis=0)
             width = max_x - min_x
             height = max_y - min_y
             left = max(min_x - width // 5, 0)
@@ -199,6 +216,7 @@ def processing(last_frame, done, args):
             top = max(min_y - height, 0)
             bottom = min(max_y + height // 5, args.frame_height - 1)
 
+            # save face image to a folder, where it will be picked up by webserver
             face_img = img[top:bottom, left:right].copy()
             face_dir = 'person%02d' % (face_id)
             try:
@@ -208,45 +226,59 @@ def processing(last_frame, done, args):
             frame_counts[face_id] = (frame_counts[face_id] + 1) % args.save_frames
             face_file = 'frame%03d.jpg' % frame_counts[face_id]
             cv2.imwrite(os.path.join(args.faces_dir, face_dir, face_file), face_img)
-            face_landmarks = landmarks - (left, top)
+            face_landmarks = landmarks - (left, top)    # convert face landmarks to be relative to left top of face image
 
             if args.display:
+                # plot blue rectangle when detected using face detection, green when detected using tracking
                 cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if i == 0 else (0, 255, 0), thickness=2)
+                # plot face landmarks for testing
                 for idx, pos in enumerate(landmarks):
-                    cv2.circle(img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+                    cv2.circle(img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
+                # plot landmarks on face image for testing
                 for idx, pos in enumerate(face_landmarks):
-                    cv2.circle(face_img, (pos[0, 0], pos[0, 1]), 1, color=(0, 255, 255), thickness=-1)
+                    cv2.circle(face_img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
+                # show each person in separate window
                 cv2.imshow('face%d' % (face_id), face_img)
 
-            ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes].astype(np.float32), camera_matrix, None)
+            # find the distance of camera from face (which is the same as distance of face from camera)
+            ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes].astype(np.float32), camera_matrix, dist_coefs)
             assert ret
 
+            # only display face when the estimated distance from mirror is positive
             if translation_vector[2] > 0:
                 translation_vector = translation_vector[:, 0]                       # strip useless dimension
                 translation_vector = np.dot(translation_vector, camera_rotation)    # fix error from camera angle
                 translation_vector += (args.camera_x, args.camera_y, args.camera_z) # translate to global coordinates
 
-                # convert landmarks into relative coordinates and do then hacky conversion into mm
-                landmarks_mm = (landmarks - landmarks[30]) * 1.5 + translation_vector[:2]
+                # convert image landmarks into mm landmarks, assuming flat face towards camera
+                trans_matrix, mask = cv2.findHomography(landmarks[landmark_indexes].astype(np.float32), model_points[:,:2].astype(np.float32))
+                landmarks_mm = cv2.perspectiveTransform(landmarks[np.newaxis].astype(np.float32), trans_matrix.astype(np.float32))[0]
 
-                if np.mean(landmarks_mm[:,0]) >= args.tv_left and np.mean(landmarks_mm[:,0]) <= args.tv_right:
+                # ALTERNATIVES:
+                # use only reference model points (face always flat)
+                #landmarks_mm = model_points[:, :2]
+                # replace known points with reference points
+                #landmarks_mm[landmark_indexes] = model_points[:, :2]
 
-                    min_xy = np.min(landmarks_mm, axis=0)
-                    min_x = min_xy[0, 0]
-                    min_y = min_xy[0, 1]
-                    max_xy = np.max(landmarks_mm, axis=0)
-                    max_x = max_xy[0, 0]
-                    max_y = max_xy[0, 1]
+                # convert landmarks into global coordinates, assuming that face image in mirror is 2x smaller
+                # see http://www.physicsclassroom.com/class/refln/Lesson-2/What-Portion-of-a-Mirror-is-Required-to-View-an-Im
+                landmarks_mm = landmarks_mm // 2 + translation_vector[:2]
+
+                # only if landmarks are within the tv screen
+                if args.tv_left <= np.mean(landmarks_mm[:,0]) <= args.tv_right:
+
+                    min_x, min_y = np.min(landmarks_mm, axis=0)
+                    max_x, max_y = np.max(landmarks_mm, axis=0)
                     width = max_x - min_x
                     height = max_y - min_y
-                    left = min_x - width // 5
-                    right = max_x + width // 5
-                    top = min_y - height
-                    bottom = max_y + height // 5
+                    left = max(min_x - width // 5, 0)
+                    right = min(max_x + width // 5, args.frame_width - 1)
+                    top = max(min_y - height, 0)
+                    bottom = min(max_y + height // 5, args.frame_height - 1)
 
-                    ret = client1.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
-                    #ret = client1.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
-                    ret = client1.publish("rtv_all/face_new/%d" % (face_id), json.dumps({
+                    ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
+                    #ret = mqtt.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
+                    ret = mqtt.publish("rtv_all/face_new/%d" % (face_id), json.dumps({
                             'nose_global_mm': translation_vector.astype(np.int).tolist(),
                             'faceimg_global_mm': [left, top, right, bottom],
                             'landmarks_faceimg_px': face_landmarks.tolist(),
@@ -278,12 +310,13 @@ def processing(last_frame, done, args):
             fps_frames = 0
             fps_start = time.time()
 
-    # When everything is done
-    client1.loop_stop()
+    # when everything is done
+    mqtt.loop_stop()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument("--calibration_file", default='raspberry_camera_module_v2_640x480.npz')
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--camera_x", type=int, default=697)
@@ -305,7 +338,7 @@ if __name__ == '__main__':
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
     parser.add_argument("--save_frames", type=int, default=1000)
-    parser.add_argument("--tracking_frames", type=int, default=1)
+    parser.add_argument("--tracking_frames", type=int, default=0)
     parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
@@ -319,10 +352,11 @@ if __name__ == '__main__':
     last_frame.raw = buf
     done = Value('i', 0)
 
-    # launch processes
+    # launch capture process
     c = Process(name='capture', target=capture, args=(last_frame, done, args))
     c.start()
 
+    # launch face detection process
     p = Process(name='processing', target=processing, args=(last_frame, done, args))
     p.start()
 
