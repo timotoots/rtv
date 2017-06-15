@@ -107,6 +107,22 @@ def get_camera_matrix(imageWidth, imageHeight):
     cy = imageHeight / 2 # in px
     return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
+def capture_profile(last_frame, done, args):
+    import cProfile
+    command = """capture_org(last_frame, done, args)"""
+    cProfile.runctx( command, globals(), locals(), filename="%s_capture.profile" % args.profile )
+
+def capture_pprofile(last_frame, done, args):
+    import pprofile
+    prof = pprofile.Profile()
+    try:
+        with prof():
+            capture(last_frame, done, args)
+    except:
+        pass
+    prof.dump_stats("%s_capture.pprofile" % args.profile)
+    prof.callgrind(open("callgrind.out.%s_capture" % args.profile, 'w'))
+
 def capture(last_frame, done, args):
     print "Starting capture..."
 
@@ -134,6 +150,22 @@ def capture(last_frame, done, args):
         last_frame.raw = img.tostring()
 
     video_capture.release()
+
+def processing_profile(last_frame, done, args):
+    import cProfile
+    command = """processing_org(last_frame, done, args)"""
+    cProfile.runctx( command, globals(), locals(), filename="%s_processing.profile" % args.profile )
+
+def processing_pprofile(last_frame, done, args):
+    import pprofile
+    prof = pprofile.Profile()
+    try:
+        with prof():
+            processing(last_frame, done, args)
+    except:
+        pass
+    prof.dump_stats("%s_processing.pprofile" % args.profile)
+    prof.callgrind(open("callgrind.out.%s_processing" % args.profile, 'w'))
 
 def processing(last_frame, done, args):
     print "Starting processing..."
@@ -343,6 +375,8 @@ if __name__ == '__main__':
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
+    parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
+    parser.add_argument("--profile")
     args = parser.parse_args()
     
     # set up interprocess communication buffers
@@ -353,11 +387,27 @@ if __name__ == '__main__':
     done = Value('i', 0)
 
     # launch capture process
-    c = Process(name='capture', target=capture, args=(last_frame, done, args))
+    target = capture
+    if args.profile:
+        if args.profile_type == 'pprofile':
+            target = capture_pprofile
+        elif args.profile_type == 'profile':
+            target = capture_profile
+        else:
+            assert False
+    c = Process(name='capture', target=target , args=(last_frame, done, args))
     c.start()
 
     # launch face detection process
-    p = Process(name='processing', target=processing, args=(last_frame, done, args))
+    target = processing
+    if args.profile:
+        if args.profile_type == 'pprofile':
+            target = processing_pprofile
+        elif args.profile_type == 'profile':
+            target = processing_profile
+        else:
+            assert False
+    p = Process(name='processing', target=target, args=(last_frame, done, args))
     p.start()
 
     # wait for processes to finish

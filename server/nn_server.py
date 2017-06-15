@@ -4,6 +4,9 @@ from sklearn.neighbors import NearestNeighbors
 from flask import Flask, Response, request
 app = Flask(__name__)
 
+#from werkzeug.contrib.profiler import ProfilerMiddleware
+#app.wsgi_app = ProfilerMiddleware(app.wsgi_app, profile_dir='nn_server_profile_json')
+
 nn = NearestNeighbors(n_neighbors=1)
 fit = False
 faces = []
