@@ -16,6 +16,7 @@ var calibration_elements = [];
 
 var root_group;
 
+var crosshairs = {};
 
 ///////////////////////////////////////////////
 
@@ -108,6 +109,10 @@ gfx.start(function (err) {
     root_group = this.createGroup();
     this.setRoot(root_group);
   
+    // onload
+    draw_crosshairs();
+
+
 });
 
 amino.fonts.registerFont({
@@ -172,22 +177,40 @@ client.on('message', (topic, message) => {
         var msg = message.toString();
         var faceframe = JSON.parse(msg);
 
-        // new internal id, not the same as face_id
-        faceframe.id = faces.length;
+
+        var found = 0;
+
+        // if face exists
+        for (var i = 0; i < faces.length; i++) {
+
+            if (faces[i]["history"][0].face_id == faceframe.face_id){
+                faceframe.id = i;
+                found = 1;
+
+
+            }
+        }
 
         // Register new face
-        if(typeof faces[faceframe.id] === "undefined"){
-            faces[faceframe.id] = { "history":[], "el":{} };
+        if (found == 0){
+            // new internal id, not the same as face_id
+            faceframe.id = faces.length;
+            faces[faceframe.id] = { "history":[], "el":{}, "crosshairs":{ "status":"grid"} };
+            console.log("NEW FACE id: " + faceframe.id);  
+            // crosshairs_to_face(faceframe);
+         
         } 
-        
+
+
         // Clean history
-        if (faces[faceframe.id]["history"].length > 10){
+        if (faces[faceframe.id]["history"].length > 20){
         	faces[faceframe.id]["history"].pop();
         }
 
         // Add frame to history
-        faces[faceframe.id]["history"].unshift(faceframe);
+        faces[faceframe.id]["history"].unshift(faceframe); // The unshift() method adds new items to the beginning of an array, and returns the new length.
       
+
       	// Check face movement  
         check_move(faceframe);
 
@@ -195,15 +218,30 @@ client.on('message', (topic, message) => {
         check_hide(faceframe);
 
         // Real time drawings
-        draw_img(faceframe);
+        // draw_img(faceframe);
         
-        draw_facepoly(faceframe);
+        // draw_facepoly(faceframe);
 
-        draw_dots(faceframe);
+        // draw_dotface(faceframe);
     
-     	draw_text(faceframe);
+     	// draw_text(faceframe);
 
-     	draw_square(faceframe);
+     	// draw_square(faceframe);
+
+            // console.log(faces[faceframe.id]["movement"]["status"]);
+
+        if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["crosshairs"]["status"] == "grid"){
+
+            // console.log(faces[faceframe.id]["movement"]["status"]);
+
+            faces[faceframe.id]["crosshairs"]["status"] = "anim";
+
+            crosshairs_to_face(faceframe);
+
+            setTimeout(function(faceframe){ faces[faceframe.id]["crosshairs"]["status"] = "grid"; },30000,faceframe);
+            
+
+        }
 
 
     } 
@@ -263,16 +301,18 @@ function check_move(faceframe){
 
     }
 
+    // console.log(faces[faceframe.id]["movement"]);
+
+
 	// current coordinates of the nose
-    var coords_x = mm2px_x(faceframe.landmarks_global_mm[12][0]);
-    var coords_y = mm2px_y(faceframe.landmarks_global_mm[12][1]);
+    var coords_x = mm2px_x(faceframe.nose_global_mm[0]);
+    var coords_y = mm2px_y(faceframe.nose_global_mm[1]);
  
-    var movement_samples = 4; // for calculating average
-    var movement_tolerance_mm = 70;
+    var movement_tolerance_mm = 50;
 
     // how many samples we use in the average
-    if (faces[faceframe.id]["history"].length > 10){
-    	var samples_for_average = 10;
+    if (faces[faceframe.id]["history"].length > 20){
+    	var samples_for_average = 20;
     } else {
   	  	var samples_for_average = faces[faceframe.id]["history"].length ;
     }
@@ -282,13 +322,17 @@ function check_move(faceframe){
     var total_y = 0;
     for (var i = 0; i < samples_for_average; i++) {
         
-        total_x +=  faces[faceframe.id]["history"][i].landmarks_global_mm[12][0];
-        total_y +=  faces[faceframe.id]["history"][i].landmarks_global_mm[12][1];
+        total_x +=  faces[faceframe.id]["history"][i].nose_global_mm[0];
+        total_y +=  faces[faceframe.id]["history"][i].nose_global_mm[1];
 
     }
 
-    var avg_x = total_x / samples_for_average;
-    var avg_y = total_y / samples_for_average;
+    var avg_x = mm2px_x(total_x / samples_for_average);
+    var avg_y = mm2px_y(total_y / samples_for_average);
+
+    // console.log( "Average X:" + avg_x + " / now " + coords_x);
+    // console.log( "Average Y:" + avg_y + " / now " + coords_y);
+
 
 
     if( Math.abs(avg_x - coords_x) > movement_tolerance_mm || Math.abs(avg_y - coords_y) > movement_tolerance_mm){
@@ -296,15 +340,19 @@ function check_move(faceframe){
     	// current coordinates are different from average
     	faces[faceframe.id]["movement"]["status"] = "moving";
 
+    
+
     } else if(faces[faceframe.id]["movement"]["status"] == "moving") {
 
-        faces[faceframe.id]["movement"]["status"] = "still"
-        faces[faceframe.id]["movement"]["still_coords"] = coords_x + "," coords_y;
+        // console.log("STILLLL");
+        faces[faceframe.id]["movement"]["status"] = "still";
+        faces[faceframe.id]["movement"]["still_coords"] = coords_x + "," + coords_y;
 
         var d = new Date();
         faces[faceframe.id]["movement"]["still_time"] = d.getTime();
 	
     }
+
 
 
 
@@ -343,6 +391,101 @@ function check_hide(faceframe){
 //
 // DRAWING FUNCTIONS
 
+var crosshair_offset_x = 333;
+var crosshair_offset_y = 333;
+
+
+
+//////////////////////////////////////////
+
+function draw_crosshairs(){
+
+
+
+var i = 0;
+
+for (var x = 0; x < 12; x++) {
+
+    for (var y = 0; y < 3; y++) {
+
+        // var crosshair_id = x + "," + y;
+        var crosshair_id = i;
+
+        crosshairs[crosshair_id] = gfx.createImageView().opacity(1.0);
+        crosshairs[crosshair_id].src("http://192.168.22.100/rtv/crosshair.png");
+
+        var coords = [];
+        coords[0] = mm2px_x(x*333 + crosshair_offset_x);
+        coords[1] = mm2px_y(y*333 + crosshair_offset_y);
+
+        crosshairs[crosshair_id].x(coords[0]);
+        crosshairs[crosshair_id].y(coords[1]);
+
+        crosshairs[crosshair_id].w(25);
+        crosshairs[crosshair_id].h(25);
+
+        root_group.add(crosshairs[crosshair_id]);
+
+        i++;
+
+    } // for y
+
+} // for x
+
+
+}
+
+function crosshairs_to_face(faceframe){
+
+var i = 0;
+
+
+    for (var x = 0; x < 12; x++) {
+
+        for (var y = 0; y < 3; y++) {
+            
+         
+            var crosshair_id = i;
+
+            var values = [crosshair_id,x,y];
+           
+            var from_x = mm2px_x(x * 333 + crosshair_offset_x);
+            var from_y = mm2px_y(y * 333 + crosshair_offset_y);
+
+
+            var coords_x = mm2px_x(faceframe.landmarks_global_mm[i][0]);
+            var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
+
+            // crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).dur(2000).autoreverse(true).loop(-1).start();
+            // crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).dur(2000).autoreverse(true).loop(-1).start();
+      
+
+            crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).delay(crosshair_id*200).dur(3000).start();
+            crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).delay(crosshair_id*200).dur(3000).start();
+
+            crosshairs[crosshair_id].x.anim().from(coords_x).to(from_x).delay(13000).dur(500).start();
+            crosshairs[crosshair_id].y.anim().from(coords_y).to(from_y).delay(13000).dur(500).start();
+
+
+
+            // crosshairs[crosshair_id].w.anim().from(50).to(25).delay(crosshair_id*300).dur(5000).start();
+            // crosshairs[crosshair_id].h.anim().from(50).to(25).delay(crosshair_id*300).dur(5000).start();
+
+            crosshairs[crosshair_id].size('stretch');
+
+            
+            i++;
+
+
+
+        }
+
+    }
+
+}
+
+
+//////////////////////////////////////////
 
 function draw_img(faceframe){
 
@@ -419,7 +562,7 @@ function draw_dotface(faceframe){
 
 	// initialize dotface
 
-    if(typeof faces[faceframe.id]["el"]["dotface"][0] === "undefined"){
+    if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
 
         faces[faceframe.id]["el"]["dotface"] = [];
         var box_width = 5; // in px
@@ -443,7 +586,11 @@ function draw_dotface(faceframe){
 		var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
 
 		// last frame
-		var previous_faceframe = faces[faceframe.id]["history"][1];
+        if (faces[faceframe.id]["history"].length>1){
+            var previous_faceframe = faces[faceframe.id]["history"][1];
+        } else {
+            var previous_faceframe = faces[faceframe.id]["history"][0];
+        }
 		var from_x = mm2px_x(previous_faceframe.landmarks_global_mm[i][0]);
 		var from_y = mm2px_y(previous_faceframe.landmarks_global_mm[i][1]);
 
@@ -490,7 +637,7 @@ function draw_square(faceframe){
 	faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
             
 	faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
-    console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + geometry2);
+    console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
 
 
 }
@@ -506,7 +653,7 @@ function draw_text(faceframe){
 
     if(typeof faces[faceframe.id]["el"]["text"] === "undefined"){
 
-        faces[faceframe.id]["el"]["text"] = gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text('').fontWeight(200);
+        faces[faceframe.id]["el"]["text"] = gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text("face_id: " + faceframe.face_id).fontWeight(200);
         root_group.add(faces[faceframe.id]["el"]["text"]);
         console.log("NEW text / FACE_ID:" + faceframe.id);
 
@@ -516,7 +663,7 @@ function draw_text(faceframe){
     faces[faceframe.id]["el"]["text"].x(coords_x);
     faces[faceframe.id]["el"]["text"].y(coords_y);
 
-    console.log("MOVE text / FACE_ID:" + faceframe.id + " geometry:" + geometry2);
+    console.log("MOVE text / FACE_ID:" + faceframe.id + " geometry:" + coords_x + " y:" + coords_y);
 
 
 } // if draw_text(faceframe)
