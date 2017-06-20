@@ -303,10 +303,10 @@ def processing(last_frame, done, args):
                     max_x, max_y = np.max(landmarks_mm, axis=0)
                     width = max_x - min_x
                     height = max_y - min_y
-                    left = max(min_x - width // 5, 0)
-                    right = min(max_x + width // 5, args.frame_width - 1)
-                    top = max(min_y - height, 0)
-                    bottom = min(max_y + height // 5, args.frame_height - 1)
+                    left = min_x - width // 5
+                    right = max_x + width // 5
+                    top = min_y - height
+                    bottom = max_y + height // 5
 
                     ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
                     #ret = mqtt.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
