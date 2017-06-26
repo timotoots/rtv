@@ -487,7 +487,7 @@ function draw_square(faceframe){
 
     for (var i = 0; i < map.length; i++) {
 
-        map[i][1] = map[i][1] - 30;
+        map[i][1] = map[i][1] - 40;
 
         if(fm.mm2px_x(map[i][0]) > max_x){ max_x = fm.mm2px_x(map[i][0]); }
         if(fm.mm2px_y(map[i][1]) > max_y){ max_y = fm.mm2px_y(map[i][1]); }
@@ -501,7 +501,9 @@ function draw_square(faceframe){
    var height = Math.abs(max_y - min_y);
    // console.log(width + " " + height);
 
-   if(width > height){
+   if(width > 600 || height > 600 || width < 30 || height < 30){
+    var square_side = 200;
+   } else if(width > height){
     var square_side = width;
    } else {
     var square_side = height;
@@ -514,6 +516,7 @@ function draw_square(faceframe){
 
     var coords_x_rect = coords_x-square_side/2;
     var coords_y_rect = coords_y-square_side/2;
+
 
    
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
