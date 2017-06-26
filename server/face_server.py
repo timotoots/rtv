@@ -64,6 +64,9 @@ model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-11.9570603 ,  42.94222333, -23.244     ],
        [-21.8388323 ,  40.95529   , -28.30023333]])
 
+# set zero point between eyes
+model_points += model_points[27]
+
 # correspondence between dlib landmarks and MPEG-4 Facial Feature Points based on:
 # http://visagetechnologies.com/mpeg-4-face-and-body-animation/
 landmark_indexes = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
@@ -230,10 +233,12 @@ def processing(last_frame, done, args):
             descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
 
             # ask nearest neighbor server for identity of this face descriptor
-            r = requests.post(args.face_nn_url, json=list(descriptor))
-            if r.status_code == 200:
+            try:
+                r = requests.post(args.face_nn_url, json=list(descriptor))
+                r.raise_for_status()
                 face_id = int(r.text)
-            else:
+            except requests.exceptions.RequestException as e:
+                print e
                 face_id = 999999
             # convert landmarks to numpy array
             landmarks = np.array([[p.x, p.y] for p in landmarks.parts()])

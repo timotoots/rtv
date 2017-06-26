@@ -15,6 +15,8 @@ cd /opt/rtv/server
 ./rtv3.sh --no_display &
 
 # nearest neighbor server
+# to clean up server delete database
+#rm -f nn_server.db
 python nn_server.py &
 
 # start image server
