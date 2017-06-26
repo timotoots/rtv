@@ -26,7 +26,7 @@ var stripes, stripes1, stripes2, stripes3;
 // Module
 
 var Facemirror = require('./facemirror.js');
-var fm = new Facemirror({"client_id":"rtv3","env":"node"});
+var fm = new Facemirror({"client_id":client_id,"env":"node"});
 fm.foo();
 
 
