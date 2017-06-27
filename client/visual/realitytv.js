@@ -194,7 +194,7 @@ function main_loop(){
 
     setTimeout(function(){
         main_loop();
-    },20);
+    },30);
 
 
 } // function main_loop()
@@ -487,7 +487,7 @@ function draw_square(faceframe){
 
     for (var i = 0; i < map.length; i++) {
 
-        map[i][1] = map[i][1] - 40;
+        // map[i][1] = map[i][1] - 40;
 
         if(fm.mm2px_x(map[i][0]) > max_x){ max_x = fm.mm2px_x(map[i][0]); }
         if(fm.mm2px_y(map[i][1]) > max_y){ max_y = fm.mm2px_y(map[i][1]); }
@@ -510,20 +510,26 @@ function draw_square(faceframe){
    }
 
 
-    var coords_x = (min_x+max_x)/2;
-    var coords_y = (min_y+max_y)/2;
+    var thirdeye_y = fm.mm2px_y(map[27][1]);
+    var face_bottom_y = fm.mm2px_y(map[8][1]);
+
+    var square_side_px = (face_bottom_y - thirdeye_y)*2;
 
 
-    var coords_x_rect = coords_x-square_side/2;
-    var coords_y_rect = coords_y-square_side/2;
+    var coords_x_rect = fm.mm2px_x(map[27][0]) - square_side_px/2;
+    var coords_y_rect = fm.mm2px_y(map[27][1]) - square_side_px/2;
 
+    console.log(square_side_px + " square side");
 
    
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
 
-        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(coords_x_rect).y(coords_y_rect).w(square_side).h(square_side).fill("#000000").opacity(1.0);
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(coords_x_rect).y(coords_y_rect).w(10).h(10).fill("#000000").opacity(1.0);
         root_group.add(faces[faceframe.id]["el"]["square"]);
         console.log("NEW square / FACE_ID:" + faceframe.id);
+
+        faces[faceframe.id]["el"]["square"].w.anim().from(10).to(square_side_px).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].h.anim().from(10).to(square_side_px).dur(1000).delay(1000).start();
 
         faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
 
