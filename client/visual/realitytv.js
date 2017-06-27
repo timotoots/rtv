@@ -194,7 +194,7 @@ function main_loop(){
 
     setTimeout(function(){
         main_loop();
-    },30);
+    },10);
 
 
 } // function main_loop()
@@ -592,7 +592,7 @@ function move_stripes(){
     if (stripes.y.value < -1000){
       stripes.y(0);
     } else {
-      stripes.y(stripes.y.value-1);
+      stripes.y(stripes.y.value-0.2);
     }
 
 }
