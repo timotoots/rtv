@@ -36,9 +36,9 @@ def search():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", default='nn_server.db')
+    parser.add_argument("--db")
     parser.add_argument("--nn_algorithm", choices=['auto', 'ball_tree', 'kd_tree', 'brute'], default='auto')
-    parser.add_argument("--radius_same", type=float, default=0.6)
+    parser.add_argument("--radius_same", type=float, default=0.5)
     parser.add_argument("--radius_extend", type=float, default=0.3)
     parser.add_argument("--debug", action='store_true', default=False)
     parser.add_argument("--profile")
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     nn = NearestNeighbors(n_neighbors=1, algorithm=args.nn_algorithm)
 
-    if os.path.isfile(args.db):
+    if args.db and os.path.isfile(args.db):
         with open(args.db, 'rb') as f:
             faces, faces2persons, persons = pickle.load(f)
         nn.fit(faces)
@@ -59,7 +59,9 @@ if __name__ == '__main__':
         faces2persons = []
         persons = []
 
-    app.run(debug=True)
-    with open(args.db, 'wb') as f:
-        pickle.dump([faces, faces2persons, persons], f, protocol=pickle.HIGHEST_PROTOCOL)
+    app.run(debug=args.debug)
+    
+    if args.db:
+        with open(args.db, 'wb') as f:
+            pickle.dump([faces, faces2persons, persons], f, protocol=pickle.HIGHEST_PROTOCOL)
     print "faces: %d, persons: %d" % (len(faces), len(persons))
