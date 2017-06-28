@@ -137,7 +137,7 @@ def capture(last_frame, done, args):
         # handle video server restarts
         if not ret:
             if args.video_source == 'camera':
-                video_capture.open(0)
+                video_capture.open(args.video_camera)
             elif args.video_source == 'url':
                 video_capture.open(args.video_url)
             else:
@@ -415,6 +415,7 @@ if __name__ == '__main__':
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
+    parser.add_argument("--video_camera", type=int, default=0)
     parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
     parser.add_argument("--profile")
     args = parser.parse_args()
