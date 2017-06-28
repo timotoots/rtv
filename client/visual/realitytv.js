@@ -21,6 +21,7 @@ var crosshairs = {};
 
 var stripes, stripes1, stripes2, stripes3;
 
+var sweep_history = [];
 
 //////////////////
 // Module
@@ -42,6 +43,7 @@ client.on('connect', () => {
 
   client.subscribe(client_id + '/#');
   client.subscribe('rtv_all/#');
+  client.subscribe('sweep/#');
 
 })
 
@@ -61,8 +63,8 @@ gfx.start(function (err) {
   
     // onload
     draw_crosshairs();
-    draw_stripes();
-    main_loop();
+    // draw_stripes();
+    // main_loop();
 
 });
 
@@ -122,6 +124,20 @@ client.on('message', (topic, message) => {
 ///////////////////////////////////////////////////////////////////
 
 
+    } else if (topic === 'sweep/scan_xz'){
+
+        var msg = message.toString();
+        var map = JSON.parse(msg);
+
+           // Clean history
+          if (sweep_history.length > 10){
+              sweep_history.pop();
+          }
+
+          // Add frame to history
+          sweep_history.unshift(map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
+
+
     } else if(topics[1] === 'face_new' && el_id) {
 
         // parse message
@@ -149,9 +165,9 @@ client.on('message', (topic, message) => {
         // draw_stripes();
 
 
-        // draw_text(faceframe);
+        draw_text(faceframe);
 
-        draw_square(faceframe);
+        // draw_square(faceframe);
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
 /*
@@ -473,6 +489,7 @@ function draw_dotface(faceframe){
 
 }
 
+
 //////////////////////////////////////////
 
 function draw_square(faceframe){
@@ -546,24 +563,50 @@ function draw_square(faceframe){
 
 //////////////////////////////////////////
 
+
+
 function draw_text(faceframe){
 
       
     var map = faceframe.landmarks_global_mm;
     var coords_x = fm.mm2px_x(map[30][0])-200;
-    var coords_y = fm.mm2px_y(map[30][1])+150;
+    var coords_y = fm.mm2px_y(map[30][1])-50;
 
     if(typeof faces[faceframe.id]["el"]["text"] === "undefined"){
 
         faces[faceframe.id]["el"]["text"] = gfx.createText().x(coords_x).y(coords_y).fontSize(40).fontName('ISOCTEUR').text("face_id: " + faceframe.face_id).fontWeight(200);
         root_group.add(faces[faceframe.id]["el"]["text"]);
         console.log("NEW text / FACE_ID:" + faceframe.id);
+        faces[faceframe.id]["z_history"] = [];
 
     } 
+
+
+    var current_lidar_z = sweep_get_z(map[30][0]);
+    var current_nose_z = Math.round(faceframe.nose_global_mm[2]);
+
+    if (current_lidar_z != null){
+
+        var z_offset = current_nose_z / current_lidar_z;
+
+
+        faces[faceframe.id]["z_history"].unshift(z_offset);
+        console.log(faces[faceframe.id]["z_history"]);
+
+    }
+
+        
+    var z_offset_avg = arr.median(faces[faceframe.id]["z_history"]);
+
+
+    var text_str = "lidar=" + current_lidar_z + "mm / opencv=" + current_nose_z + "mm / "+ z_offset.toFixed(4);
 
     // move text
     faces[faceframe.id]["el"]["text"].x(coords_x);
     faces[faceframe.id]["el"]["text"].y(coords_y);
+
+    faces[faceframe.id]["el"]["text"].text(text_str);
+
 
     console.log("MOVE text / FACE_ID:" + faceframe.id + " geometry:" + coords_x + " y:" + coords_y);
 
@@ -572,6 +615,43 @@ function draw_text(faceframe){
 
 //////////////////////////////////////////
 
+function sweep_get_z(x){
+
+var close_points = [];
+
+    for (var i = 0; i < sweep_history.length; i++) {
+
+        for (var j = 0; j < sweep_history[i].length; j++) {
+
+            if(Math.abs(sweep_history[i][j][0]- x) < 80 && sweep_history[i][j][1]>10  && sweep_history[i][j][1]< 4000){
+
+                close_points.unshift(sweep_history[i][j][1]);
+
+            } // if
+
+        } // for
+    
+     } // for
+
+var total = 0;
+
+// console.log(close_points);
+
+var average_z = arr.median(close_points);
+/*
+for (var i = 0; i < close_points.length; i++) {
+    total += close_points[i];
+}
+
+var average_z = Math.round(total / i);
+*/
+return average_z;
+
+}
+
+
+
+//////////////////////////////////////////
 
 function draw_stripes(){
 
@@ -597,4 +677,92 @@ function move_stripes(){
 
 }
 
-           
+/////////////////////////////////////////////////////////////////////////////////////
+
+// Statistical functions
+
+var arr = {   
+    max: function(array) {
+        return Math.max.apply(null, array);
+    },
+    
+    min: function(array) {
+        return Math.min.apply(null, array);
+    },
+    
+    range: function(array) {
+        return arr.max(array) - arr.min(array);
+    },
+    
+    midrange: function(array) {
+        return arr.range(array) / 2;
+    },
+
+    sum: function(array) {
+        var num = 0;
+        for (var i = 0, l = array.length; i < l; i++) num += array[i];
+        return num;
+    },
+    
+    mean: function(array) {
+        return arr.sum(array) / array.length;
+    },
+    
+    median: function(array) {
+        array.sort(function(a, b) {
+            return a - b;
+        });
+        var mid = array.length / 2;
+        return mid % 1 ? array[mid - 0.5] : (array[mid - 1] + array[mid]) / 2;
+    },
+    
+    modes: function(array) {
+        if (!array.length) return [];
+        var modeMap = {},
+            maxCount = 0,
+            modes = [];
+
+        array.forEach(function(val) {
+            if (!modeMap[val]) modeMap[val] = 1;
+            else modeMap[val]++;
+
+            if (modeMap[val] > maxCount) {
+                modes = [val];
+                maxCount = modeMap[val];
+            }
+            else if (modeMap[val] === maxCount) {
+                modes.push(val);
+                maxCount = modeMap[val];
+            }
+        });
+        return modes;
+    },
+    
+    variance: function(array) {
+        var mean = arr.mean(array);
+        return arr.mean(array.map(function(num) {
+            return Math.pow(num - mean, 2);
+        }));
+    },
+    
+    standardDeviation: function(array) {
+        return Math.sqrt(arr.variance(array));
+    },
+    
+    meanAbsoluteDeviation: function(array) {
+        var mean = arr.mean(array);
+        return arr.mean(array.map(function(num) {
+            return Math.abs(num - mean);
+        }));
+    },
+    
+    zScores: function(array) {
+        var mean = arr.mean(array);
+        var standardDeviation = arr.standardDeviation(array);
+        return array.map(function(num) {
+            return (num - mean) / standardDeviation;
+        });
+    }
+};
+
+//////////////////////////////////     

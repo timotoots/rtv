@@ -33,19 +33,19 @@ client.on('message', (topic, message) => {
     var topics = topic.split("/");
     var el_id = topics[2];
 
-    if (topic === 'sweep/scan_xzs'){
+    if (topic === 'sweep/scan_xz'){
 
         var msg = message.toString();
         var map = JSON.parse(msg);
 
         for (var depth_i = 0; depth_i < map.length; depth_i++) {
 
-            var coords_x = mm2px_x(map[depth_i][0]*10);
-            var bar_width = map[depth_i][1]/3;
+            var coords_x = mm2px_x(map[depth_i][0]);
+            var bar_width = map[depth_i][1]/30;
 
             i++;
 
-            if(map[depth_i][0]>0 && map[depth_i][1] > 20 && map[depth_i][1] < 200){
+            if(map[depth_i][0]>0 && map[depth_i][1] > 200 && map[depth_i][1] < 2000){
 
                  // console.log(coords_x);
 
@@ -61,6 +61,9 @@ client.on('message', (topic, message) => {
                      all_depth[i].x.anim().from(0).to(coords_x).dur(1).start();
 
                 }
+
+                // console.log("coords_x:" + map[depth_i][0]);
+
 
                  all_depth[i].opacity.anim().from(1).to(0).dur(3000).start();
 
