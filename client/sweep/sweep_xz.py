@@ -21,7 +21,7 @@ client1.connect(broker, port)
 with Sweep('/dev/ttyUSB0') as sweep:
     
     # Set motor speed, 0:10 Hz
-    sweep.set_motor_speed(10)
+    sweep.set_motor_speed(5)
     # Set sample rate, 500, 750 or 1000 Hz
     sweep.set_sample_rate(750)
     
@@ -37,7 +37,7 @@ with Sweep('/dev/ttyUSB0') as sweep:
     # Distance to the mirror plane [cm]
     z0 = 5
     # Number os scans before transmit
-    n_scans = 5
+    n_scans = 2
 
     acc_count = 0
     samples = []
@@ -70,7 +70,7 @@ with Sweep('/dev/ttyUSB0') as sweep:
             # angle = lidar angle in milli degree  
             # distance = lidar distance in cm
             # signal_strength = signal strenght
-            samples.append([x, z, angle, distance, signal_strength])
+            samples.append([x*10, z*10, angle, distance, signal_strength])
             
         # Accumulate n_scans times before sending
         acc_count = (acc_count + 1) % n_scans
