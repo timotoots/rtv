@@ -195,7 +195,7 @@ def processing(last_frame, done, args):
     fps_frames = 0
 
     frame_counts = defaultdict(int)
-    i = 0
+    tracking_frame = 0
 
     #face_coords = defaultdict(partial(deque, maxlen=5))
     face_coords = {}
@@ -207,7 +207,7 @@ def processing(last_frame, done, args):
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         # after every args.tracking_frames do full face detection
-        if i == 0 or not args.tracking_frames:
+        if tracking_frame == 0 or not args.tracking_frames:
             faces = detector(gray, args.dlib_upscale)
             if args.tracking_frames:
                 # set up trackers
@@ -274,7 +274,7 @@ def processing(last_frame, done, args):
 
             if args.display:
                 # plot blue rectangle when detected using face detection, green when detected using tracking
-                cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if i == 0 else (0, 255, 0), thickness=2)
+                cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if tracking_frame == 0 else (0, 255, 0), thickness=2)
                 # plot face landmarks for testing
                 for idx, pos in enumerate(landmarks):
                     cv2.circle(img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
@@ -358,7 +358,7 @@ def processing(last_frame, done, args):
                 del face_counts[i]
         
         if args.tracking_frames:
-            i = (i + 1) % args.tracking_frames
+            tracking_frame = (tracking_frame + 1) % args.tracking_frames
 
         fps_frames += 1
         fps_elapsed	= time.time() -	fps_start

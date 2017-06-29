@@ -160,14 +160,19 @@ client.on('message', (topic, message) => {
         
         // draw_facepoly(faceframe);
 
-        draw_dotface(faceframe);
+//        draw_dotface(faceframe);
     
         // draw_stripes();
 
 
         draw_text(faceframe);
 
+<<<<<<< HEAD
+        draw_square(faceframe);
+        draw_dotface(faceframe);
+=======
         // draw_square(faceframe);
+>>>>>>> d4bc72070c6cc87f2fd9847818123b4476d8d5a4
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
 /*
