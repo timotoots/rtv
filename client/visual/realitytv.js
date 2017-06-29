@@ -144,7 +144,7 @@ client.on('message', (topic, message) => {
         
         // draw_facepoly(faceframe);
 
-        draw_dotface(faceframe);
+//        draw_dotface(faceframe);
     
         // draw_stripes();
 
@@ -152,6 +152,7 @@ client.on('message', (topic, message) => {
         // draw_text(faceframe);
 
         draw_square(faceframe);
+        draw_dotface(faceframe);
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
 /*
