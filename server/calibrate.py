@@ -33,7 +33,7 @@ pattern_points *= args.square_size
 
 obj_points = []
 img_points = []
-img_files = glob(os.path.join(args.input_dir, '*.jpg'))
+img_files = sorted(glob(os.path.join(args.input_dir, '*.jpg')))
 
 for img_file in img_files:
     print img_file,
@@ -68,8 +68,9 @@ rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.calibrateCamera(obj_points, i
 #dist_coefs = np.zeros((5,))
 #rms = None
 
-np.savez(args.calibration_file, rms=rms, camera_matrix=camera_matrix, dist_coefs=dist_coefs)
+np.savez(args.calibration_file, rms=rms, camera_matrix=camera_matrix, dist_coefs=dist_coefs, image_width=args.frame_width, image_height=args.frame_height)
 
 print "RMS:", rms
 print "camera_matrix:", camera_matrix
 print "dist_coefs:", dist_coefs
+print "image_size:", (args.frame_width, args.frame_height)

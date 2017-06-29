@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&vflip=&nopreview=')
+    parser.add_argument("--video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--video_camera", type=int, default=0)
     args = parser.parse_args()
 

@@ -14,6 +14,18 @@ import json
 import sys
 import requests
 
+def get_camera_matrix(imageWidth, imageHeight, sensorWidth, sensorHeight, focalLength):
+    fx = imageWidth * focalLength / sensorWidth # in px
+    fy = imageHeight * focalLength / sensorHeight # in px
+    cx = imageWidth / 2 # in px
+    cy = imageHeight / 2 # in px
+    return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
+
+def get_proj_matrix(cameraMatrix, shift):
+    trans = np.zeros((3, 1))
+    trans[0,0] = cameraMatrix[0, 0] * shift
+    return np.hstack([cameraMatrix, trans])
+
 # from https://www.learnopencv.com/rotation-matrix-to-euler-angles/
 def eulerAnglesToRotationMatrix(theta) :
      
@@ -107,15 +119,29 @@ def processing(left_frame, right_frame, done, args):
     predictor = dlib.shape_predictor(args.predictor_path)
     facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
-    calibration = np.load(args.calibration_file)
-    left_camera_matrix = calibration['left_camera_matrix']
-    right_camera_matrix = calibration['right_camera_matrix']
-    left_dist_coefs = calibration['left_dist_coefs']
-    right_dist_coefs = calibration['right_dist_coefs']
-    left_rotation_matrix = calibration['left_rotation_matrix']
-    right_rotation_matrix = calibration['right_rotation_matrix']
-    left_proj_matrix = calibration['left_proj_matrix']
-    right_proj_matrix = calibration['right_proj_matrix']
+    if args.calibration_file:
+        calibration = np.load(args.calibration_file)
+        left_camera_matrix = calibration['left_camera_matrix']
+        # correct camera matrix for new resolution
+        left_camera_matrix[0] *= float(args.frame_width) / calibration['image_width']
+        left_camera_matrix[1] *= float(args.frame_height) / calibration['image_height']
+        right_camera_matrix = calibration['right_camera_matrix']
+        # correct camera matrix for new resolution
+        right_camera_matrix[0] *= float(args.frame_width) / calibration['image_width']
+        right_camera_matrix[1] *= float(args.frame_height) / calibration['image_height']
+        left_dist_coefs = calibration['left_dist_coefs']
+        right_dist_coefs = calibration['right_dist_coefs']
+        left_rotation_matrix = calibration['left_rotation_matrix']
+        right_rotation_matrix = calibration['right_rotation_matrix']
+        left_proj_matrix = calibration['left_proj_matrix']
+        right_proj_matrix = calibration['right_proj_matrix']
+    else:
+        left_camera_matrix = right_camera_matrix = get_camera_matrix(args.frame_width, args.frame_height, args.sensor_width, args.sensor_height, args.focal_length)
+        left_dist_coefs = right_dist_coefs = np.array([[ 0.24229091, -0.57693401,  0.00773281, -0.00155601,  0.48140698]])
+        left_rotation_matrix = right_rotation_matrix = None
+        left_proj_matrix = get_proj_matrix(left_camera_matrix, 0)
+        right_proj_matrix = get_proj_matrix(right_camera_matrix, args.right_camera_shift)
+
     camera_rotation = eulerAnglesToRotationMatrix((np.radians(args.camera_anglex), np.radians(args.camera_angley), np.radians(args.camera_anglez)))
 
     mqtt = paho.Client(args.mqtt_name)     # create client object
@@ -270,14 +296,18 @@ def processing(left_frame, right_frame, done, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--calibration_file", default='calibration_stereo_a3v2.npz')
+    parser.add_argument("--calibration_file")
+    parser.add_argument("--sensor_width", type=float, default=3.68)  # in mm
+    parser.add_argument("--sensor_height", type=float, default=2.76) # in mm
+    parser.add_argument("--focal_length", type=float, default=3.04)  # in mm
+    parser.add_argument("--right_camera_shift", type=float, default=-200)  # in mm
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
-    parser.add_argument("--camera_x", type=int, default=3277)
-    parser.add_argument("--camera_y", type=int, default=0)
-    parser.add_argument("--camera_z", type=int, default=0)
-    parser.add_argument("--camera_anglex", type=float, default=24.2)
-    parser.add_argument("--camera_angley", type=float, default=1)
+    parser.add_argument("--camera_x", type=int, default=3294)
+    parser.add_argument("--camera_y", type=int, default=-55)
+    parser.add_argument("--camera_z", type=int, default=15)
+    parser.add_argument("--camera_anglex", type=float, default=15.5)
+    parser.add_argument("--camera_angley", type=float, default=-1.7)
     parser.add_argument("--camera_anglez", type=float, default=0)
     parser.add_argument("--display", action="store_true", default=True)
     parser.add_argument("--no_display", action="store_false", dest='display')
@@ -294,10 +324,10 @@ if __name__ == '__main__':
     parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--left_video_url", default='http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&vflip=&nopreview=')
+    parser.add_argument("--left_video_url", default='http://rtv3b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--left_video_camera", type=int, default=3)
     parser.add_argument("--right_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--right_video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&vflip=&nopreview=')
+    parser.add_argument("--right_video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--right_video_camera", type=int, default=1)
     parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
     parser.add_argument("--profile")

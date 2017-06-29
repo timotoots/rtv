@@ -6,9 +6,9 @@ import cv2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input_dir")
-parser.add_argument("stereo_calibration_file")
 parser.add_argument("left_calibration_file")
 parser.add_argument("right_calibration_file")
+parser.add_argument("stereo_calibration_file")
 parser.add_argument("--debug_dir")
 parser.add_argument("--square_size", type=float, default=34)
 parser.add_argument("--rows", type=int, default=9)
@@ -20,11 +20,19 @@ args = parser.parse_args()
 left_calibration = np.load(args.left_calibration_file)
 left_camera_matrix = left_calibration['camera_matrix']
 left_dist_coefs = left_calibration['dist_coefs']
+# convert camera matrix for new resolution
+left_camera_matrix[0] *= args.frame_width / left_calibration['image_width']
+left_camera_matrix[1] *= args.frame_height / left_calibration['image_height']
+# TODO: do we need to convert dist coeff matrix as well?
 print "left RMS:", left_calibration['rms']
 
 right_calibration = np.load(args.right_calibration_file)
 right_camera_matrix = right_calibration['camera_matrix']
 right_dist_coefs = right_calibration['dist_coefs']
+# convert camera matrix for new resolution
+right_camera_matrix[0] *= args.frame_width / right_calibration['image_width']
+right_camera_matrix[1] *= args.frame_height / right_calibration['image_height']
+# TODO: do we need to convert dist coeff matrix as well?
 print "right RMS:", right_calibration['rms']
 
 pattern_size = (args.cols, args.rows)
@@ -47,8 +55,8 @@ for left_file, right_file in zip(left_files, right_files):
     left_img = cv2.resize(left_img, (args.frame_width, args.frame_height))
     right_img = cv2.resize(right_img, (args.frame_width, args.frame_height))
 
-    left_found, left_corners = cv2.findChessboardCorners(left_img, pattern_size)
-    right_found, right_corners = cv2.findChessboardCorners(right_img, pattern_size)
+    left_found, left_corners = cv2.findChessboardCorners(left_img, pattern_size, flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
+    right_found, right_corners = cv2.findChessboardCorners(right_img, pattern_size, flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
     if left_found and right_found:
         term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 50, 0.001)
         cv2.cornerSubPix(left_img, left_corners, (5, 5), (-1, -1), term)
@@ -93,7 +101,9 @@ np.savez(args.stereo_calibration_file,
     right_rotation_matrix=right_rotation_matrix, 
     left_proj_matrix=left_proj_matrix, 
     right_proj_matrix=right_proj_matrix, 
-    depth_mapping_matrix=depth_mapping_matrix)
+    depth_mapping_matrix=depth_mapping_matrix,
+    image_width=args.frame_width, 
+    image_height=args.frame_height)
 
 print "stereo_rotation_matrix:", stereo_rotation_matrix.shape
 #print stereo_rotation_matrix
@@ -109,3 +119,4 @@ print "right_proj_matrix:", right_proj_matrix.shape
 #print right_proj_matrix
 print "distance between cameras on a common plane:", right_proj_matrix[0, 3] / right_proj_matrix[0, 0]
 print "depth_mapping_matrix:", depth_mapping_matrix.shape
+print "image_size:", (args.frame_width, args.frame_height)
