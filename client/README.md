@@ -4,12 +4,12 @@
 * Scans room with Sweep Lidar and sends measurements by MQTT.
 * Displays graphics controlled by MQTT.
 
+----------------------------------------------------------------------
 
 # Installation
 
-
 # Setup on Raspberry Pi
-install Raspbian
+install Raspbian Lite
 
 # Raspberry Pi config
 sudo raspi-config
@@ -20,23 +20,53 @@ sudo raspi-config
 	enable ssh
 	boot to console
 
+# Change timezone
 
-sudo nano /boot/config.txt
+sudo rm /etc/localtime
+sudo ln -s /usr/share/zoneinfo/Europe/Tallinn /etc/localtime
 
-	add line: gpu_mem=180
+# Change keyboard layout
 
-sudo apt-get update
+sudo nano /etc/default/keyboard
 
-sudo apt-get upgrade
+	change line: 
+	XKBLAYOUT="ee"
 
 # Install RTV Git repository
 
+	sudo apt-get install git python-flask
 	sudo chown pi:pi /opt/
 	cd /opt/
 	git clone https://github.com/timotoots/rtv.git
 
 
-# Install new Node JS
+# Start script on boot
+sudo nano /etc/rc.local
+
+	add line:
+	/opt/rtv/client/startup.sh &
+
+
+# Update apt
+
+sudo apt-get update
+
+sudo apt-get upgrade
+
+# Prevent SD Card corrupt 
+
+Follow:
+
+https://hallard.me/raspberry-pi-read-only/
+
+
+
+----------------------------------------------------------------------
+
+# Follow next steps only for client A:
+
+
+# Install new Node JS 7
 
 	curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
 	sudo apt-get install nodejs
@@ -52,14 +82,6 @@ https://github.com/joshmarinacci/aminogfx-gl
 	sudo npm install aminogfx-gl
 	node /opt/rtv/client/test.js
 
-# Build and install Sweep SDK
-	
-https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md  
-
-	sudo apt-get install cmake
-
-	cd /opt/
-	git clone https://github.com/scanse/sweep-sdk.git
 
 # Install Paho MQTT module for Python3
 
@@ -77,9 +99,27 @@ sudo nano /boot/cmdline.txt
 	
 	set consoleblank=0
 
+sudo nano /boot/config.txt
 
-# Start script on boot
-sudo nano /etc/rc.local
+	add line: gpu_mem=180
 
-	add line:
-	/opt/rtv/client/startup.sh &
+
+----------------------------------------------------------------------
+
+
+# Build and install Sweep SDK / only rtv2A
+	
+https://github.com/scanse/sweep-sdk/blob/master/libsweep/README.md  
+
+	sudo apt-get install cmake
+
+	cd /opt/
+	git clone https://github.com/scanse/sweep-sdk.git
+
+sudo nano /boot/config.txt
+
+	add line: max_usb_current=1
+
+
+----------------------------------------------------------------------
+
