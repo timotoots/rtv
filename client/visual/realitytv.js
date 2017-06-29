@@ -34,7 +34,7 @@ fm.foo();
 
 ///////////////////////////////////////////////
 
-// MQTT connect
+// MQTT connect 
 
 const mqtt = require('mqtt')  
 const client = mqtt.connect('mqtt://192.168.22.20')
@@ -63,8 +63,8 @@ gfx.start(function (err) {
   
     // onload
     draw_crosshairs();
-    // draw_stripes();
-    // main_loop();
+    draw_stripes();
+    main_loop();
 
 });
 
@@ -160,19 +160,14 @@ client.on('message', (topic, message) => {
         
         // draw_facepoly(faceframe);
 
-//        draw_dotface(faceframe);
     
         // draw_stripes();
 
 
-        draw_text(faceframe);
+        // draw_text(faceframe);
 
-<<<<<<< HEAD
         draw_square(faceframe);
         draw_dotface(faceframe);
-=======
-        // draw_square(faceframe);
->>>>>>> d4bc72070c6cc87f2fd9847818123b4476d8d5a4
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
 /*
