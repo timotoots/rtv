@@ -53,7 +53,7 @@ def eulerAnglesToRotationMatrix(theta) :
 
 def capture_profile(last_frame, done, args):
     import cProfile
-    command = """capture_org(last_frame, done, args)"""
+    command = """capture(last_frame, done, args)"""
     cProfile.runctx( command, globals(), locals(), filename="%s_capture.profile" % args.profile )
 
 def capture_pprofile(last_frame, done, args):
@@ -98,7 +98,7 @@ def capture(last_frame, done, video_source, video_camera, video_url, args):
 
 def processing_profile(last_frame, done, args):
     import cProfile
-    command = """processing_org(last_frame, done, args)"""
+    command = """processing(last_frame, done, args)"""
     cProfile.runctx( command, globals(), locals(), filename="%s_processing.profile" % args.profile )
 
 def processing_pprofile(last_frame, done, args):
@@ -151,49 +151,33 @@ def processing(left_frame, right_frame, done, args):
     fps_start =	time.time()
     fps_frames = 0
 
-    frame_counts = defaultdict(int)
-
-    #face_coords = defaultdict(partial(deque, maxlen=5))
-    face_coords = {}
-    face_counts = defaultdict(int)
-
     while True:
+        # fetch left and right images.
+        # NB! there must be no processing in between fetching left and right, 
+        # otherwise it confuses stereo vision
         left_img = np.frombuffer(left_frame.raw, dtype=np.uint8)
-        left_img = left_img.reshape((args.frame_height, args.frame_width, 3))
-
         right_img = np.frombuffer(right_frame.raw, dtype=np.uint8)
+        left_img = left_img.reshape((args.frame_height, args.frame_width, 3))
         right_img = right_img.reshape((args.frame_height, args.frame_width, 3))
 
+        # detect left faces
         left_gray = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
         left_faces = detector(left_gray, args.dlib_upscale)
 
-        right_gray = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
-        right_faces = detector(right_gray, args.dlib_upscale)
-
-        # TODO: align detected faces
-        # trim number of faces to be the same
-        right_faces = right_faces[:len(left_faces)]
-        left_faces = left_faces[:len(right_faces)]
-
-        #left_img_undistorted = cv2.undistort(left_img, left_camera_matrix, left_dist_coefs)
-        #right_img_undistorted = cv2.undistort(right_img, left_camera_matrix, left_dist_coefs)
-
-        # loop over faces
-        for left_rect, right_rect in zip(left_faces, right_faces):
+        left_ids = []
+        left_rects = {}
+        left_landmarkss = {}
+        for rect in left_faces:
             # ignore faces that are partially outside of image
-            if left_rect.left() < 0 or left_rect.right() >= args.frame_width or \
-                    left_rect.top() < 0 or left_rect.bottom() >= args.frame_height or \
-                    right_rect.left() < 0 or right_rect.right() >= args.frame_width or \
-                    right_rect.top() < 0 or right_rect.bottom() >= args.frame_height:
+            if rect.left() < 0 or rect.right() >= args.frame_width or \
+                    rect.top() < 0 or rect.bottom() >= args.frame_height:
                 continue
 
             # detect landmarks from (grayscale) image
-            left_landmarks = predictor(left_gray, left_rect)
-            right_landmarks = predictor(right_gray, right_rect)
+            landmarks = predictor(left_gray, rect)
 
             # compute face descriptor from (color!) image
-            # NB! always use left image to compute descriptor!
-            descriptor = facerec.compute_face_descriptor(left_img.copy(), left_landmarks)
+            descriptor = facerec.compute_face_descriptor(left_img.copy(), landmarks)
 
             # ask nearest neighbor server for identity of this face descriptor
             try:
@@ -205,6 +189,53 @@ def processing(left_frame, right_frame, done, args):
                 # if any error occurs, set dummy face id
                 face_id = 999999
 
+            left_ids.append(face_id)
+            left_rects[face_id] = rect
+            left_landmarkss[face_id] = landmarks
+
+        # detect right faces
+        right_gray = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
+        right_faces = detector(right_gray, args.dlib_upscale)
+
+        right_ids = []
+        right_rects = {}
+        right_landmarkss = {}
+        for rect in right_faces:
+            # ignore faces that are partially outside of image
+            if rect.left() < 0 or rect.right() >= args.frame_width or \
+                    rect.top() < 0 or rect.bottom() >= args.frame_height:
+                continue
+
+            # detect landmarks from (grayscale) image
+            landmarks = predictor(right_gray, rect)
+
+            # compute face descriptor from (color!) image
+            descriptor = facerec.compute_face_descriptor(right_img.copy(), landmarks)
+
+            # ask nearest neighbor server for identity of this face descriptor
+            try:
+                r = requests.post(args.face_nn_url, json=list(descriptor))
+                r.raise_for_status()
+                face_id = int(r.text)
+            except requests.exceptions.RequestException as e:
+                print e
+                # if any error occurs, set dummy face id
+                face_id = 999999
+
+            right_ids.append(face_id)
+            right_rects[face_id] = rect
+            right_landmarkss[face_id] = landmarks
+
+        #left_img_undistorted = cv2.undistort(left_img, left_camera_matrix, left_dist_coefs)
+        #right_img_undistorted = cv2.undistort(right_img, left_camera_matrix, left_dist_coefs)
+
+        # loop over faces that appear both on left and right image
+        for face_id in set(left_ids).intersection(right_ids):
+            left_rect = left_rects[face_id]
+            left_landmarks = left_landmarkss[face_id]
+            right_rect = right_rects[face_id]
+            right_landmarks = right_landmarkss[face_id]
+            
             # convert landmarks to numpy array
             left_landmarks = np.array([[p.x, p.y] for p in left_landmarks.parts()], dtype=np.float32)
             right_landmarks = np.array([[p.x, p.y] for p in right_landmarks.parts()], dtype=np.float32)
@@ -300,14 +331,14 @@ if __name__ == '__main__':
     parser.add_argument("--sensor_width", type=float, default=3.68)  # in mm
     parser.add_argument("--sensor_height", type=float, default=2.76) # in mm
     parser.add_argument("--focal_length", type=float, default=3.04)  # in mm
-    parser.add_argument("--right_camera_shift", type=float, default=-200)  # in mm
+    parser.add_argument("--right_camera_shift", type=float, default=-120)  # in mm
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--camera_x", type=int, default=3294)
     parser.add_argument("--camera_y", type=int, default=-55)
     parser.add_argument("--camera_z", type=int, default=15)
     parser.add_argument("--camera_anglex", type=float, default=15.5)
-    parser.add_argument("--camera_angley", type=float, default=-1.7)
+    parser.add_argument("--camera_angley", type=float, default=-2)
     parser.add_argument("--camera_anglez", type=float, default=0)
     parser.add_argument("--display", action="store_true", default=True)
     parser.add_argument("--no_display", action="store_false", dest='display')
