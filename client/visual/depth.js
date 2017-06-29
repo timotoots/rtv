@@ -33,7 +33,7 @@ client.on('message', (topic, message) => {
     var topics = topic.split("/");
     var el_id = topics[2];
 
-    if (topic === 'sweep/scan_xz'){
+    if (topic === 'sweep/scan_xzs'){
 
         var msg = message.toString();
         var map = JSON.parse(msg);
