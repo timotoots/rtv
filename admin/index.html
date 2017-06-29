@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>RTV Admin</title>
+    <meta name="description" content="">
+    <script type="text/javascript" src="mqttws31.min.js"></script>
+    <script type="text/javascript" src="jquery.js"></script>
+    <style type="text/css">
+    	
+    	body{
+    		font-family: DINPro;
+    		margin:0;
+    		padding: 0;
+    		background: #000000;
+    		color: #FFFFFF;
+    	}
+    	
+    	#buttons{
+    		width: 100%
+    		height: 40px;
+    		background: gray;
+    		margin-bottom: 10px;
+
+    	}
+
+    	.control_log{
+    		width: 24%;
+    		height: 100%;
+    		float: left;
+    		border: 1px solid #FFFFFF;
+    	}
+
+
+    	
+
+    </style>
+    <script type="text/javascript">
+
+
+////////////////////////////////////////////
+
+	var r=0;
+
+	var client_id = "rtv_admin";
+
+   
+
+////////////////////////////////////////////
+
+        // Parameters
+        var hostname = "192.168.22.20";
+        var port = 1884;
+
+        var client_id_mqtt = "clientId"+Math.random();
+        console.log(client_id_mqtt);
+
+        // Create a client instance
+        var client = new Paho.MQTT.Client(hostname, Number(port),client_id_mqtt );
+
+        // set callback handlers
+        client.onConnectionLost = onConnectionLost;
+        client.onMessageArrived = onMessageArrived;
+
+        // connect the client
+        client.connect({
+            onSuccess: onConnect
+        });
+
+
+        // called when the client connects
+        function onConnect() {
+            // Once a connection has been made, make a subscription and send a message.
+            console.log("onConnect");
+            client.subscribe("#");
+        }
+
+        // called when the client loses its connection
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log("onConnectionLost:" + responseObject.errorMessage);
+            }
+        }
+
+
+        
+        function send(topic, msg) {
+            if (!client) {
+                return;
+            }
+            var message = new Paho.MQTT.Message(msg);
+            message.destinationName = topic;
+            client.send(message);
+            console.log("SEND: " + topic + " : " +send)
+        }
+
+
+
+
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+            
+        	var topic = message.destinationName;
+			var topics = topic.split("/");
+			var el_id = topics[2];
+			var msg =  message.payloadString.toString();
+            var el_type = topics[1];
+
+            console.log("Message arrived: topic=" + topics + ", message=" + msg);
+
+
+               if(topics[1] === 'control_log') {
+
+               		var div_id = "#" + topics[0] + "_control_log";
+               		console.log(div_id);
+
+               		$(div_id).prepend("<hr/><b>" + topic + "</b><br/><br/>" + msg);
+             
+
+
+               } else if(topics[1] === 'control') {
+            			
+               		$("#rtv_all_control").append("<hr/><b>" + topic + "</b><br/><br/>" + msg);
+
+               }
+
+
+        } // function onMessageArrived
+
+
+
+
+    </script>
+</head>
+
+<body>
+<div id="buttons"> 
+
+	<button onclick="send('rtv_all/control', 'test')">MQTT Test</button>
+	<button onclick="send('rtv_all/control', 'git_pull')">Git pull</button>
+	<button onclick="send('rtv_all/control', 'reboot')">Reboot client RPi</button>
+	<button onclick="send('rtv_all/control', 'app_reboot')">Reboot client GFX</button>
+	<button onclick="send('rtv_all/control', 'app_kill')">Kill client GFX</button>
+	<button onclick="send('rtv_all/control', 'shutdown')">Shutdown RPi</button>
+    <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate Mode</button>
+
+
+
+
+</div>
+
+<div id="rtv_all_control" class="control_log"></div>
+<div id="rtv1_main_control_log" class="control_log"></div>
+<div id="rtv2_main_control_log" class="control_log"></div>
+<div id="rtv3_main_control_log" class="control_log"></div>
+
+</body>
+
+</html>
