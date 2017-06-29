@@ -112,6 +112,8 @@ gfx.start(function (err) {
     // onload
     draw_crosshairs();
 
+    // main_loop();
+
 
 });
 
@@ -147,7 +149,7 @@ client.on('message', (topic, message) => {
 
 ///////////////////////////////////////////////////////////////////
 
-    if(topics[1] === 'calibrate') {
+	if(topics[1] === 'calibrate') {
  
         el_id = 0;
 
@@ -204,14 +206,14 @@ client.on('message', (topic, message) => {
 
         // Clean history
         if (faces[faceframe.id]["history"].length > 20){
-            faces[faceframe.id]["history"].pop();
+        	faces[faceframe.id]["history"].pop();
         }
 
         // Add frame to history
         faces[faceframe.id]["history"].unshift(faceframe); // The unshift() method adds new items to the beginning of an array, and returns the new length.
       
 
-        // Check face movement  
+      	// Check face movement  
         check_move(faceframe);
 
         // Check hiding timer
@@ -224,9 +226,9 @@ client.on('message', (topic, message) => {
 
         // draw_dotface(faceframe);
     
-        // draw_text(faceframe);
+     	// draw_text(faceframe);
 
-        // draw_square(faceframe);
+     	// draw_square(faceframe);
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
 
@@ -237,11 +239,27 @@ client.on('message', (topic, message) => {
             faces[faceframe.id]["crosshairs"]["status"] = "anim";
 
             crosshairs_to_face(faceframe);
+            // draw_animated_square(faceframe);
+            setTimeout(function (faceframe){
+                // hide_animated_square(faceframe)
+            },20000,faceframe);
 
             setTimeout(function(faceframe){ faces[faceframe.id]["crosshairs"]["status"] = "grid"; },30000,faceframe);
             
 
+        } else if(faces[faceframe.id]["movement"]["status"] == "moving" && faces[faceframe.id]["crosshairs"]["status"] == "anim"){
+
+            console.log("MOVING!")
+            faces[faceframe.id]["crosshairs"]["status"] = "debounce";
+            // hide_animated_square(faceframe);
+            crosshairs_reset(faceframe);
+            setTimeout(function(faceframe){ faces[faceframe.id]["crosshairs"]["status"] = "grid"; },5000,faceframe);
+
+
+
         }
+
+
 
 
     } 
@@ -252,20 +270,40 @@ client.on('message', (topic, message) => {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+var current_anim = 0;
+
 function main_loop(){
 
-
-    // loop over all faces
-    for (var i = 0; i < faces.length; i++) {
-
-        
-        // face_dislay(i);
-
-
+    if (current_anim >= 24){
+        current_anim = 0;
     }
 
+	// loop over all faces
+	for (var i = 0; i < faces.length; i++) {
 
-    setTimeout("main_loop",10);
+		
+        // var filename = "./img/loading_f" +current_anim +".png";
+
+        // faces[i]["el"]["anim_square"].src(filename);
+
+        if (faces[i]["el"]["anim_square_pattern"].y.value < -800){
+            faces[i]["el"]["anim_square_pattern"].y(0);
+
+        } else {
+            faces[i]["el"]["anim_square_pattern"].y(faces[i]["el"]["anim_square_pattern"].y.value-2);
+
+        }
+
+        // console.log(faces[i]["el"]["anim_square_pattern"].y.value);
+
+		// face_dislay(i);
+
+
+	}
+
+    current_anim++;
+
+	setTimeout(main_loop,20);
 
 
 } // function main_loop()
@@ -276,12 +314,12 @@ function main_loop(){
 
 function face_dislay(id){
 
-    // hide show face
-    if (faces[id]["hide"]["status"] == "hidden"){
+	// hide show face
+	if (faces[id]["hide"]["status"] == "hidden"){
         faces[id][el_id]["text"].opacity(0);
-    } else {
-        faces[id][el_id]["text"].opacity(1);
-    }
+	} else {
+	    faces[id][el_id]["text"].opacity(1);
+	}
 
 } // face_dislay
 
@@ -297,24 +335,24 @@ function check_move(faceframe){
 
     if(typeof faces[faceframe.id]["movement"] === "undefined"){
 
-        faces[faceframe.id]["movement"] = {"status":"moving"};
+    	faces[faceframe.id]["movement"] = {"status":"moving"};
 
     }
 
     // console.log(faces[faceframe.id]["movement"]);
 
 
-    // current coordinates of the nose
+	// current coordinates of the nose
     var coords_x = mm2px_x(faceframe.nose_global_mm[0]);
     var coords_y = mm2px_y(faceframe.nose_global_mm[1]);
  
-    var movement_tolerance_mm = 50;
+    var movement_tolerance_mm = 200;
 
     // how many samples we use in the average
-    if (faces[faceframe.id]["history"].length > 20){
-        var samples_for_average = 20;
+    if (faces[faceframe.id]["history"].length > 5){
+    	var samples_for_average = 5;
     } else {
-        var samples_for_average = faces[faceframe.id]["history"].length ;
+  	  	var samples_for_average = faces[faceframe.id]["history"].length ;
     }
 
     // calculate average
@@ -337,8 +375,8 @@ function check_move(faceframe){
 
     if( Math.abs(avg_x - coords_x) > movement_tolerance_mm || Math.abs(avg_y - coords_y) > movement_tolerance_mm){
 
-        // current coordinates are different from average
-        faces[faceframe.id]["movement"]["status"] = "moving";
+    	// current coordinates are different from average
+    	faces[faceframe.id]["movement"]["status"] = "moving";
 
     
 
@@ -350,7 +388,7 @@ function check_move(faceframe){
 
         var d = new Date();
         faces[faceframe.id]["movement"]["still_time"] = d.getTime();
-    
+	
     }
 
 
@@ -362,15 +400,15 @@ function check_move(faceframe){
 
 function check_hide(faceframe){
 
-    var time_till_hide = 500; // ms
+	var time_till_hide = 500; // ms
 
-    // Initialize hiding    
-    if(typeof faces[faceframe.id]["hide"] === "undefined"){
-        faces[faceframe.id]["hide"] = {"timer":"","status":"visible"};
+	// Initialize hiding	
+	if(typeof faces[faceframe.id]["hide"] === "undefined"){
+    	faces[faceframe.id]["hide"] = {"timer":"","status":"visible"};
     }
 
     // New frame means it's visible
-    faces[faceframe.id]["hide"]["status"] = "visible";
+	faces[faceframe.id]["hide"]["status"] = "visible";
 
     // Stop hiding
     clearTimeout(faces[faceframe.id]["hide"]["timer"]);
@@ -378,7 +416,7 @@ function check_hide(faceframe){
     // Wait for hiding
     faces[faceframe.id]["hide"]["timer"] = setTimeout(function(faceframe){
 
-         faces[faceframe.id]["hide"]["status"] = "hidden";
+    	 faces[faceframe.id]["hide"]["status"] = "hidden";
 
     },time_till_hide,faceframe);
 
@@ -435,6 +473,57 @@ for (var x = 0; x < 12; x++) {
 
 }
 
+function crosshairs_reset(faceframe){
+
+
+
+var i = 0;
+
+
+    for (var x = 0; x < 12; x++) {
+
+        for (var y = 0; y < 3; y++) {
+            
+         
+            var crosshair_id = i;
+
+            var values = [crosshair_id,x,y];
+           
+            
+            var from_x = crosshairs[crosshair_id].x.value;
+            var from_y = crosshairs[crosshair_id].y.value;
+
+            var coords_x = mm2px_x(x * 333 + crosshair_offset_x);
+            var coords_y = mm2px_y(y * 333 + crosshair_offset_y);
+
+
+       
+            // crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).dur(2000).autoreverse(true).loop(-1).start();
+            // crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).dur(2000).autoreverse(true).loop(-1).start();
+      
+            crosshairs[crosshair_id].x.anim().stop();
+            crosshairs[crosshair_id].y.anim().stop();
+
+            crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).dur(300).start();
+            crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).dur(300).start();
+
+
+            // crosshairs[crosshair_id].w.anim().from(50).to(25).delay(crosshair_id*300).dur(5000).start();
+            // crosshairs[crosshair_id].h.anim().from(50).to(25).delay(crosshair_id*300).dur(5000).start();
+
+            crosshairs[crosshair_id].size('stretch');
+
+            
+            i++;
+
+
+
+        }
+
+    }
+
+}
+
 function crosshairs_to_face(faceframe){
 
 var i = 0;
@@ -460,11 +549,11 @@ var i = 0;
             // crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).dur(2000).autoreverse(true).loop(-1).start();
       
 
-            crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).delay(crosshair_id*200).dur(3000).start();
-            crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).delay(crosshair_id*200).dur(3000).start();
+            crosshairs[crosshair_id].x.anim().from(from_x).to(coords_x).delay(crosshair_id*50).dur(1000).start();
+            crosshairs[crosshair_id].y.anim().from(from_y).to(coords_y).delay(crosshair_id*50).dur(1000).start();
 
-            crosshairs[crosshair_id].x.anim().from(coords_x).to(from_x).delay(13000).dur(500).start();
-            crosshairs[crosshair_id].y.anim().from(coords_y).to(from_y).delay(13000).dur(500).start();
+            crosshairs[crosshair_id].x.anim().from(coords_x).to(from_x).delay(5000).dur(500).start();
+            crosshairs[crosshair_id].y.anim().from(coords_y).to(from_y).delay(5000).dur(500).start();
 
 
 
@@ -502,11 +591,21 @@ function draw_img(faceframe){
     faces[faceframe.id]["el"]["image"].src(faceframe.face_image_url);
 
     var coords = [];
-    coords[0] = mm2px_x(faceframe.landmarks_global_mm[0][0]);
-    coords[1] = 10;
+    coords[0] = mm2px_x(faceframe.faceimg_global_mm[0]);
+    coords[1] = mm2px_y(faceframe.faceimg_global_mm[1]);
 
     faces[faceframe.id]["el"]["image"].x(coords[0]);
     faces[faceframe.id]["el"]["image"].y(coords[1]);
+
+    coords[0] = mm2px_x(faceframe.faceimg_global_mm[2]) - coords[0];
+    coords[1] = mm2px_y(faceframe.faceimg_global_mm[3]) - coords[1];
+
+    faces[faceframe.id]["el"]["image"].w(coords[0]);
+    faces[faceframe.id]["el"]["image"].h(coords[1]);
+
+
+
+    faces[faceframe.id]["el"]["image"].size('stretch');
 
     console.log("MOVE image / FACE_ID:" + faceframe.id + " x:" + coords[0] + " y:" + coords[1] +" " + faceframe.face_image_url);
 
@@ -524,21 +623,49 @@ function draw_facepoly(faceframe){
    
     if(typeof faces[faceframe.id]["el"]["facepoly"] === "undefined"){
 
-        faces[faceframe.id]["el"]["facepoly"] = gfx.createPolygon().opacity(1.0).fill("#FFFFFF");
+        faces[faceframe.id]["el"]["facepoly"] = gfx.createPolygon().dimension(2).opacity(1.0).fill("#FFFFFF");
         root_group.add(faces[faceframe.id]["el"]["facepoly"]);
         console.log("NEW facepoly / FACE_ID:" + faceframe.id);
 
     } 
 
     var geometry = [];
+    // geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[1]]);
 
-    for (var i = 0; i <= 16; i++) {
+    geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[3]]); // bottom left
+
+    geometry.push([faceframe.faceimg_global_mm[0],faceframe.landmarks_global_mm[0][1]]); // bottom left
+
+
+    for (var i = 0; i <= 8; i++) {
         geometry.push(faceframe.landmarks_global_mm[i]);
     }
 
-    for (var i = 26; i >= 17; i--) {
-        geometry.push(faceframe.landmarks_global_mm[i]);
-    }
+
+
+
+        geometry.push([faceframe.landmarks_global_mm[8][0],faceframe.faceimg_global_mm[3]]);
+
+        // geometry.push([faceframe.faceimg_global_mm[0],faceframe.landmarks_global_mm[0][1]]); // bottom left
+
+
+        // geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[3]]); // bottom left
+
+    // geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[1]]);
+
+
+    // var i = 26;
+
+    // for (var i = 26; i >= 17; i--) {
+    //     geometry.push(faceframe.landmarks_global_mm[i]);
+    // }
+
+    // geometry.push(faceframe.landmarks_global_mm[0]);
+    // geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[1]]);
+    // geometry.push([faceframe.faceimg_global_mm[2],faceframe.faceimg_global_mm[1]]);
+    // geometry.push([faceframe.faceimg_global_mm[2],faceframe.faceimg_global_mm[3]]);
+    // geometry.push([faceframe.faceimg_global_mm[0],faceframe.faceimg_global_mm[1]]);
+
 
     var geometry2 = [];
 
@@ -549,7 +676,7 @@ function draw_facepoly(faceframe){
 
     faces[faceframe.id]["el"]["facepoly"].geometry(geometry2);
 
-    console.log("MOVE facepoly / FACE_ID:" + faceframe.id + " geometry:" + geometry2);
+    console.log("MOVE facepoly / FACE_ID:" + faceframe.id + " geometry:" + geometry);
 
 
 }
@@ -560,14 +687,72 @@ function draw_facepoly(faceframe){
 function draw_dotface(faceframe){
 
 
-    // initialize dotface
+	// initialize dotface
 
     if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
 
         faces[faceframe.id]["el"]["dotface"] = [];
-        var box_width = 5; // in px
+        var box_width = 2; // in px
+
+		for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
+			var coords_x = mm2px_x(faceframe.landmarks_global_mm[i][0]);
+			var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
+			faces[faceframe.id]["el"]["dotface"][i] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FFFFFF').opacity(1.0);
+			root_group.add(faces[faceframe.id]["el"]["dotface"][i]);
+		} // for
+
+        console.log("NEW dotface / FACE_ID:" + faceframe.id);
+
+    }
+
+    // move landmark points to new coordinates
+	for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
+
+		// current frame
+		var coords_x = mm2px_x(faceframe.landmarks_global_mm[i][0]);
+		var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
+
+		// last frame
+        if (faces[faceframe.id]["history"].length>1){
+            var previous_faceframe = faces[faceframe.id]["history"][1];
+        } else {
+            var previous_faceframe = faces[faceframe.id]["history"][0];
+        }
+		var from_x = mm2px_x(previous_faceframe.landmarks_global_mm[i][0]);
+		var from_y = mm2px_y(previous_faceframe.landmarks_global_mm[i][1]);
+
+		// animation
+		// faces[faceframe.id]["el"]["dotface"][i].x.anim().from(from_x).to(coords_x).dur(100).start();
+		// faces[faceframe.id]["el"]["dotface"][i].y.anim().from(from_y).to(coords_y).dur(100).start();
+
+		// fast move
+		faces[faceframe.id]["el"]["dotface"][i].x(coords_x);
+		faces[faceframe.id]["el"]["dotface"][i].y(coords_y);
+
+
+	} // for
+
+
+    console.log("MOVE dotface / FACE_ID:" + faceframe.id + " x:" + coords_x + ",y:" + coords_y);
+
+
+}
+
+function draw_dotface_static(faceframe){
+
+
+    // initialize 3dface
+
+    if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
+
+        faces[faceframe.id]["el"]["dotface"] = [];
+        var box_width = 2; // in px
 
         for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
+
+
+
+
             var coords_x = mm2px_x(faceframe.landmarks_global_mm[i][0]);
             var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
             faces[faceframe.id]["el"]["dotface"][i] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FFFFFF').opacity(1.0);
@@ -578,12 +763,33 @@ function draw_dotface(faceframe){
 
     }
 
+    // current coordinates of the nose
+    var nose_coords_x = 2000;
+    var nose_coords_y = 500;
+
+    var nose_offset_x = faceframe.nose_global_mm[0] - nose_coords_x;
+    var nose_offset_y = faceframe.nose_global_mm[1] - nose_coords_y;
+
+
+    console.log("default_nose x:" + nose_coords_x+ " current_nose_x:" + faceframe.nose_global_mm[0]  + " offset:" + nose_offset_x);
+    console.log("default_nose y:" + nose_coords_y+ " current_nose_y:" + faceframe.nose_global_mm[1]  + " offset:" + nose_offset_y);
+
+
     // move landmark points to new coordinates
     for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
 
         // current frame
         var coords_x = mm2px_x(faceframe.landmarks_global_mm[i][0]);
         var coords_y = mm2px_y(faceframe.landmarks_global_mm[i][1]);
+
+        var coords_x = faceframe.landmarks_global_mm[i][0] - nose_offset_x;
+        var coords_y = faceframe.landmarks_global_mm[i][1] - nose_offset_y;
+
+        console.log("old x:" +  faceframe.landmarks_global_mm[i][0] + " new_x:" + coords_x );
+
+        coords_x = mm2px_x(coords_x);
+        coords_y = mm2px_y(coords_y);
+
 
         // last frame
         if (faces[faceframe.id]["history"].length>1){
@@ -615,12 +821,12 @@ function draw_dotface(faceframe){
 
 function draw_square(faceframe){
 
-    var map = faceframe.landmarks_global_mm;
-    var coords_x_rect = mm2px_x(map[30][0])-100;
-    var coords_y_rect = mm2px_y((map[19][1]+map[24][1])/2-50);
+	var map = faceframe.landmarks_global_mm;
+	var coords_x_rect = mm2px_x(map[30][0])-100;
+	var coords_y_rect = mm2px_y((map[19][1]+map[24][1])/2-50);
 
-    var coords_w_rect = mm2px_x(map[17][0]-map[17][0]);
-    var coords_h_rect = mm2px_y(map[17][1]); 
+	var coords_w_rect = mm2px_x(map[17][0]-map[17][0]);
+	var coords_h_rect = mm2px_y(map[17][1]); 
 
    
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
@@ -634,11 +840,72 @@ function draw_square(faceframe){
     } 
 
     faces[faceframe.id]["el"]["square"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(200).start();
-    faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
+	faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
             
+	faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
+    console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
+
+
+}
+
+//////////////////////////////////////////
+
+function create_pattern_group(faceframe){
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"] = gfx.createGroup().x(0).y(0).w(200).h(200).clipRect(true);
+
+    faces[faceframe.id]["el"]["anim_square_pattern"] = gfx.createImageView().opacity(1.0).w(1000).h(1000).x(0).y(0);
+    faces[faceframe.id]["el"]["anim_square_pattern"].src("stripes.png");
+    faces[faceframe.id]["el"]["anim_square_pattern"].right(2).bottom(2).repeat('repeat');
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].add(faces[faceframe.id]["el"]["anim_square_pattern"]);
+
+    root_group.add(faces[faceframe.id]["el"]["anim_square_pattern_group"]);
+
+
+}
+
+function hide_animated_square(faceframe){
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].opacity.anim().from(1).to(0).dur(500).start();
+    
+}
+
+function draw_animated_square(faceframe){
+
+    var map = faceframe.landmarks_global_mm;
+    var coords_x_rect = mm2px_x(map[30][0])-100;
+    var coords_y_rect = mm2px_y((map[19][1]+map[24][1])/2-50);
+
+    var coords_w_rect = mm2px_x(map[17][0]-map[17][0]);
+    var coords_h_rect = mm2px_y(map[17][1]); 
+
+   
+    if(typeof faces[faceframe.id]["el"]["anim_square_pattern"]=== "undefined"){
+
+        create_pattern_group(faceframe);
+  
+
+      
+        console.log("NEW square / FACE_ID:" + faceframe.id);
+
+        faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
+
+    } 
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].opacity.anim().from(0).to(1).dur(200).start();
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(200).start();
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
+
+         
     faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
     console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
 
+
+// loading_f0.png
 
 }
 
@@ -647,7 +914,7 @@ function draw_square(faceframe){
 function draw_text(faceframe){
 
       
-    var map = faceframe.landmarks_global_mm;
+	var map = faceframe.landmarks_global_mm;
     var coords_x = mm2px_x(map[30][0])-200;
     var coords_y = mm2px_y(map[30][1])+150;
 

@@ -3,7 +3,8 @@ import dlib
 import numpy as np
 import paho.mqtt.client as paho
 from multiprocessing import Process, Queue, Array, Value
-from collections import defaultdict
+from collections import defaultdict, deque
+from functools import partial
 import time
 import math
 import argparse
@@ -64,6 +65,10 @@ model_points = np.array([[-58.0000323 , -41.51291   , -52.8319    ],
        [-11.9570603 ,  42.94222333, -23.244     ],
        [-21.8388323 ,  40.95529   , -28.30023333]])
 
+# set zero point between eyes
+model_points += model_points[27]
+model_points *= 0.95
+
 # correspondence between dlib landmarks and MPEG-4 Facial Feature Points based on:
 # http://visagetechnologies.com/mpeg-4-face-and-body-animation/
 landmark_indexes = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
@@ -107,6 +112,22 @@ def get_camera_matrix(imageWidth, imageHeight):
     cy = imageHeight / 2 # in px
     return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
+def capture_profile(last_frame, done, args):
+    import cProfile
+    command = """capture_org(last_frame, done, args)"""
+    cProfile.runctx( command, globals(), locals(), filename="%s_capture.profile" % args.profile )
+
+def capture_pprofile(last_frame, done, args):
+    import pprofile
+    prof = pprofile.Profile()
+    try:
+        with prof():
+            capture(last_frame, done, args)
+    except:
+        pass
+    prof.dump_stats("%s_capture.pprofile" % args.profile)
+    prof.callgrind(open("callgrind.out.%s_capture" % args.profile, 'w'))
+
 def capture(last_frame, done, args):
     print "Starting capture..."
 
@@ -116,7 +137,7 @@ def capture(last_frame, done, args):
         # handle video server restarts
         if not ret:
             if args.video_source == 'camera':
-                video_capture.open(0)
+                video_capture.open(args.video_camera)
             elif args.video_source == 'url':
                 video_capture.open(args.video_url)
             else:
@@ -134,6 +155,22 @@ def capture(last_frame, done, args):
         last_frame.raw = img.tostring()
 
     video_capture.release()
+
+def processing_profile(last_frame, done, args):
+    import cProfile
+    command = """processing_org(last_frame, done, args)"""
+    cProfile.runctx( command, globals(), locals(), filename="%s_processing.profile" % args.profile )
+
+def processing_pprofile(last_frame, done, args):
+    import pprofile
+    prof = pprofile.Profile()
+    try:
+        with prof():
+            processing(last_frame, done, args)
+    except:
+        pass
+    prof.dump_stats("%s_processing.pprofile" % args.profile)
+    prof.callgrind(open("callgrind.out.%s_processing" % args.profile, 'w'))
 
 def processing(last_frame, done, args):
     print "Starting processing..."
@@ -158,7 +195,11 @@ def processing(last_frame, done, args):
     fps_frames = 0
 
     frame_counts = defaultdict(int)
-    i = 0
+    tracking_frame = 0
+
+    #face_coords = defaultdict(partial(deque, maxlen=5))
+    face_coords = {}
+    face_counts = defaultdict(int)
 
     while True:
         img = np.frombuffer(last_frame.raw, dtype=np.uint8)
@@ -166,7 +207,7 @@ def processing(last_frame, done, args):
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         # after every args.tracking_frames do full face detection
-        if i == 0 or not args.tracking_frames:
+        if tracking_frame == 0 or not args.tracking_frames:
             faces = detector(gray, args.dlib_upscale)
             if args.tracking_frames:
                 # set up trackers
@@ -198,10 +239,13 @@ def processing(last_frame, done, args):
             descriptor = facerec.compute_face_descriptor(img.copy(), landmarks)
 
             # ask nearest neighbor server for identity of this face descriptor
-            r = requests.post(args.face_nn_url, json=list(descriptor))
-            if r.status_code == 200:
+            try:
+                r = requests.post(args.face_nn_url, json=list(descriptor))
+                r.raise_for_status()
                 face_id = int(r.text)
-            else:
+            except requests.exceptions.RequestException as e:
+                print e
+                # if any error occurs, set dummy face id
                 face_id = 999999
             # convert landmarks to numpy array
             landmarks = np.array([[p.x, p.y] for p in landmarks.parts()])
@@ -230,7 +274,7 @@ def processing(last_frame, done, args):
 
             if args.display:
                 # plot blue rectangle when detected using face detection, green when detected using tracking
-                cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if i == 0 else (0, 255, 0), thickness=2)
+                cv2.rectangle(img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0) if tracking_frame == 0 else (0, 255, 0), thickness=2)
                 # plot face landmarks for testing
                 for idx, pos in enumerate(landmarks):
                     cv2.circle(img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
@@ -243,6 +287,24 @@ def processing(last_frame, done, args):
             # find the distance of camera from face (which is the same as distance of face from camera)
             ret, rotation_vector, translation_vector = cv2.solvePnP(model_points, landmarks[landmark_indexes].astype(np.float32), camera_matrix, dist_coefs)
             assert ret
+
+            '''
+            face_coords[face_id].append(translation_vector)
+            translation_vector = np.mean(face_coords[face_id], axis=0)
+            for i, face_queue in face_coords.iteritems():
+                if i != face_id and face_queue:
+                    face_queue.popleft()
+            print list(face_coords)
+            '''
+
+            if face_id in face_coords:
+                face_coords[face_id] = (1 - args.ewma_alpha) * face_coords[face_id] + args.ewma_alpha * translation_vector
+            else:
+                face_coords[face_id] = translation_vector
+            face_counts[face_id] = args.ewma_count
+            translation_vector = face_coords[face_id]
+            #print face_coords
+            #print face_counts
 
             # only display face when the estimated distance from mirror is positive
             if translation_vector[2] > 0:
@@ -271,10 +333,10 @@ def processing(last_frame, done, args):
                     max_x, max_y = np.max(landmarks_mm, axis=0)
                     width = max_x - min_x
                     height = max_y - min_y
-                    left = max(min_x - width // 5, 0)
-                    right = min(max_x + width // 5, args.frame_width - 1)
-                    top = max(min_y - height, 0)
-                    bottom = min(max_y + height // 5, args.frame_height - 1)
+                    left = min_x - width // 5
+                    right = max_x + width // 5
+                    top = min_y - height
+                    bottom = max_y + height // 5
 
                     ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
                     #ret = mqtt.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
@@ -287,8 +349,16 @@ def processing(last_frame, done, args):
                             'frame_id': '%03d' % frame_counts[face_id],
                             'face_image_url': urlparse.urljoin(args.faces_url, os.path.join(face_dir, face_file))})) # publish
 
+        for i in face_counts.keys():
+            #print i, face_counts[i]
+            if face_counts[i] > 0:
+                face_counts[i] -= 1
+            else:
+                del face_coords[i]
+                del face_counts[i]
+        
         if args.tracking_frames:
-            i = (i + 1) % args.tracking_frames
+            tracking_frame = (tracking_frame + 1) % args.tracking_frames
 
         fps_frames += 1
         fps_elapsed	= time.time() -	fps_start
@@ -337,12 +407,17 @@ if __name__ == '__main__':
     parser.add_argument("--dlib_upscale", type=int, default=0)
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
+    parser.add_argument("--ewma_alpha", type=float, default=0.5)
+    parser.add_argument("--ewma_count", type=int, default=10)
     parser.add_argument("--save_frames", type=int, default=1000)
     parser.add_argument("--tracking_frames", type=int, default=0)
     parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://192.168.22.21:5000/?width=640&height=480&framerate=40&nopreview=')
+    parser.add_argument("--video_camera", type=int, default=0)
+    parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
+    parser.add_argument("--profile")
     args = parser.parse_args()
     
     # set up interprocess communication buffers
@@ -353,11 +428,27 @@ if __name__ == '__main__':
     done = Value('i', 0)
 
     # launch capture process
-    c = Process(name='capture', target=capture, args=(last_frame, done, args))
+    target = capture
+    if args.profile:
+        if args.profile_type == 'pprofile':
+            target = capture_pprofile
+        elif args.profile_type == 'profile':
+            target = capture_profile
+        else:
+            assert False
+    c = Process(name='capture', target=target , args=(last_frame, done, args))
     c.start()
 
     # launch face detection process
-    p = Process(name='processing', target=processing, args=(last_frame, done, args))
+    target = processing
+    if args.profile:
+        if args.profile_type == 'pprofile':
+            target = processing_pprofile
+        elif args.profile_type == 'profile':
+            target = processing_profile
+        else:
+            assert False
+    p = Process(name='processing', target=target, args=(last_frame, done, args))
     p.start()
 
     # wait for processes to finish
