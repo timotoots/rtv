@@ -10,9 +10,9 @@ parser.add_argument("stereo_calibration_file")
 parser.add_argument("left_calibration_file")
 parser.add_argument("right_calibration_file")
 parser.add_argument("--debug_dir")
-parser.add_argument("--square_size", type=float, default=22)
-parser.add_argument("--rows", type=int, default=7)
-parser.add_argument("--cols", type=int, default=9)
+parser.add_argument("--square_size", type=float, default=34)
+parser.add_argument("--rows", type=int, default=9)
+parser.add_argument("--cols", type=int, default=6)
 parser.add_argument("--frame_width", type=int, default=640)
 parser.add_argument("--frame_height", type=int, default=480)
 args = parser.parse_args()
@@ -50,7 +50,7 @@ for left_file, right_file in zip(left_files, right_files):
     left_found, left_corners = cv2.findChessboardCorners(left_img, pattern_size)
     right_found, right_corners = cv2.findChessboardCorners(right_img, pattern_size)
     if left_found and right_found:
-        term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.1)
+        term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 50, 0.001)
         cv2.cornerSubPix(left_img, left_corners, (5, 5), (-1, -1), term)
         cv2.cornerSubPix(right_img, right_corners, (5, 5), (-1, -1), term)
 
@@ -67,26 +67,45 @@ for left_file, right_file in zip(left_files, right_files):
     else:
         print "not found"
 
-print "left_camera_matrix:", left_camera_matrix
-print "right_camera_matrix:", right_camera_matrix
+print "left_camera_matrix before:", left_camera_matrix
+print "right_camera_matrix before:", right_camera_matrix
 
-ret, left_camera_matrix_new, left_dist_coefs_new, right_camera_matrix_new, right_dist_coefs_new, R, T, E, F = \
+ret, left_camera_matrix, left_dist_coefs, right_camera_matrix, right_dist_coefs, stereo_rotation_matrix, stereo_trans_matrix, essential_matrix, fundamental_matrix = \
     cv2.stereoCalibrate(obj_points, left_points, right_points, imageSize=(args.frame_width, args.frame_height), cameraMatrix1=left_camera_matrix, distCoeffs1=left_dist_coefs, cameraMatrix2=right_camera_matrix, distCoeffs2=right_dist_coefs, flags=cv2.CALIB_FIX_INTRINSIC)
 assert ret
 
-print "left_camera_matrix_new:", left_camera_matrix_new
-print "right_camera_matrix_new:", right_camera_matrix_new
+print "left_camera_matrix after:", left_camera_matrix
+print "right_camera_matrix after:", right_camera_matrix
 
-RL, RR, PL, PR, Q, ROIL, ROIR = cv2.stereoRectify(cameraMatrix1=left_camera_matrix_new, cameraMatrix2=right_camera_matrix_new, distCoeffs1=left_dist_coefs_new, distCoeffs2=right_dist_coefs_new, imageSize=(args.frame_width, args.frame_height), R=R, T=T)
+left_rotation_matrix, right_rotation_matrix, left_proj_matrix, right_proj_matrix, depth_mapping_matrix, ROIL, ROIR = \
+    cv2.stereoRectify(cameraMatrix1=left_camera_matrix, cameraMatrix2=right_camera_matrix, distCoeffs1=left_dist_coefs, distCoeffs2=right_dist_coefs, imageSize=(args.frame_width, args.frame_height), R=stereo_rotation_matrix, T=stereo_trans_matrix)
 
-np.savez(args.stereo_calibration_file, R=R, T=T, E=E, F=F, RL=RL, RR=RR, PL=PL, PR=PR, Q=Q)
+np.savez(args.stereo_calibration_file, 
+    left_camera_matrix=left_camera_matrix,
+    right_camera_matrix=right_camera_matrix,
+    left_dist_coefs=left_dist_coefs,
+    right_dist_coefs=right_dist_coefs,
+    stereo_rotation_matrix=stereo_rotation_matrix, 
+    stereo_trans_matrix=stereo_trans_matrix, 
+    essential_matrix=essential_matrix, 
+    fundamental_matrix=fundamental_matrix, 
+    left_rotation_matrix=left_rotation_matrix, 
+    right_rotation_matrix=right_rotation_matrix, 
+    left_proj_matrix=left_proj_matrix, 
+    right_proj_matrix=right_proj_matrix, 
+    depth_mapping_matrix=depth_mapping_matrix)
 
-print "R:", R.shape
-print "T:", T.shape, T
-print "E:", E.shape
-print "F:", F.shape
-print "RL:", RL.shape
-print "RR:", RR.shape
-print "PL:", PL.shape
-print "PR:", PR.shape
-print "Q:", Q.shape
+print "stereo_rotation_matrix:", stereo_rotation_matrix.shape
+#print stereo_rotation_matrix
+print "stereo_trans_matrix:", stereo_trans_matrix.shape
+print stereo_trans_matrix
+print "essential_matrix:", essential_matrix.shape
+print "fundamental_matrix:", fundamental_matrix.shape
+print "left_rotation_matrix:", left_rotation_matrix.shape
+print "right_rotation_matrix:", right_rotation_matrix.shape
+print "left_proj_matrix:", left_proj_matrix.shape
+#print left_proj_matrix
+print "right_proj_matrix:", right_proj_matrix.shape
+#print right_proj_matrix
+print "distance between cameras on a common plane:", right_proj_matrix[0, 3] / right_proj_matrix[0, 0]
+print "depth_mapping_matrix:", depth_mapping_matrix.shape

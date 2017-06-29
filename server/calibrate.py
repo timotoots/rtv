@@ -15,9 +15,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("input_dir")
 parser.add_argument("calibration_file")
 parser.add_argument("--debug_dir")
-parser.add_argument("--square_size", type=float, default=22)
-parser.add_argument("--rows", type=int, default=7)
-parser.add_argument("--cols", type=int, default=9)
+parser.add_argument("--pattern", choices=['chess', 'circles'], default='chess')
+parser.add_argument("--square_size", type=float, default=34)
+parser.add_argument("--rows", type=int, default=9)
+parser.add_argument("--cols", type=int, default=6)
 parser.add_argument("--frame_width", type=int, default=640)
 parser.add_argument("--frame_height", type=int, default=480)
 parser.add_argument("--sensor_width", type=float, default=3.68)  # in mm
@@ -41,11 +42,16 @@ for img_file in img_files:
     
     img = cv2.resize(img, (args.frame_width, args.frame_height))
 
-    found, corners = cv2.findChessboardCorners(img, pattern_size)
+    if args.pattern == 'chess':
+        found, corners = cv2.findChessboardCorners(img, pattern_size)
+        if found:
+            term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 50, 0.001)
+            cv2.cornerSubPix(img, corners, (5, 5), (-1, -1), term)
+    elif args.pattern == 'circles':
+        found, corners = cv2.findCirclesGrid(img, pattern_size, flags=cv2.CALIB_CB_ASYMMETRIC_GRID)
+    else:
+        assert False
     if found:
-        term = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.1)
-        cv2.cornerSubPix(img, corners, (5, 5), (-1, -1), term)
-
         img_points.append(corners.reshape(-1, 2))
         obj_points.append(pattern_points)
         print "found"
@@ -57,9 +63,9 @@ for img_file in img_files:
         print "not found"
 
 camera_matrix = get_camera_matrix(args.frame_width, args.frame_height, args.sensor_width, args.sensor_height, args.focal_length)
-dist_coefs = None
 print "camera_matrix before:", camera_matrix
-rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, (args.frame_width, args.frame_height), camera_matrix, dist_coefs, flags=cv2.CALIB_USE_INTRINSIC_GUESS)
+rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, (args.frame_width, args.frame_height), camera_matrix, None, flags=cv2.CALIB_USE_INTRINSIC_GUESS)
+#dist_coefs = np.zeros((5,))
 #rms = None
 
 np.savez(args.calibration_file, rms=rms, camera_matrix=camera_matrix, dist_coefs=dist_coefs)

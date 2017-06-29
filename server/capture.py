@@ -45,7 +45,12 @@ def processing(last_frame, done, args):
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ret, corners = cv2.findChessboardCorners(gray, pattern_size, None, cv2.CALIB_CB_FAST_CHECK)
+        if args.pattern == 'chess':
+            ret, corners = cv2.findChessboardCorners(gray, pattern_size, flags=cv2.CALIB_CB_FAST_CHECK)
+        elif args.pattern == 'circles':
+            ret, corners = cv2.findCirclesGrid(gray, pattern_size, flags=cv2.CALIB_CB_ASYMMETRIC_GRID)
+        else:
+            assert False
         cv2.drawChessboardCorners(img, pattern_size, corners, ret)
 
         if ret:
@@ -67,13 +72,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("output_dir")
     parser.add_argument("--count", type=int, default=100)
-    parser.add_argument("--rows", type=int, default=7)
-    parser.add_argument("--cols", type=int, default=9)
+    parser.add_argument("--rows", type=int, default=9)
+    parser.add_argument("--cols", type=int, default=6)
+    parser.add_argument("--pattern", choices=['chess', 'circles'], default='chess')
     parser.add_argument("--interval", type=int, default=1000)
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--video_url", default='http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&vflip=&nopreview=')
+    parser.add_argument("--video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&vflip=&nopreview=')
     parser.add_argument("--video_camera", type=int, default=0)
     args = parser.parse_args()
 

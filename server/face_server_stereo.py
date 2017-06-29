@@ -107,15 +107,15 @@ def processing(left_frame, right_frame, done, args):
     predictor = dlib.shape_predictor(args.predictor_path)
     facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
-    left_calibration = np.load(args.left_calibration_file)
-    right_calibration = np.load(args.right_calibration_file)
-    stereo_calibration = np.load(args.stereo_calibration_file)
-    left_camera_matrix = left_calibration['camera_matrix']
-    right_camera_matrix = right_calibration['camera_matrix']
-    left_dist_coefs = left_calibration['dist_coefs']
-    right_dist_coefs = right_calibration['dist_coefs']
-    left_proj_matrix = stereo_calibration['PL']
-    right_proj_matrix = stereo_calibration['PR']
+    calibration = np.load(args.calibration_file)
+    left_camera_matrix = calibration['left_camera_matrix']
+    right_camera_matrix = calibration['right_camera_matrix']
+    left_dist_coefs = calibration['left_dist_coefs']
+    right_dist_coefs = calibration['right_dist_coefs']
+    left_rotation_matrix = calibration['left_rotation_matrix']
+    right_rotation_matrix = calibration['right_rotation_matrix']
+    left_proj_matrix = calibration['left_proj_matrix']
+    right_proj_matrix = calibration['right_proj_matrix']
     camera_rotation = eulerAnglesToRotationMatrix((np.radians(args.camera_anglex), np.radians(args.camera_angley), np.radians(args.camera_anglez)))
 
     mqtt = paho.Client(args.mqtt_name)     # create client object
@@ -149,6 +149,9 @@ def processing(left_frame, right_frame, done, args):
         right_faces = right_faces[:len(left_faces)]
         left_faces = left_faces[:len(right_faces)]
 
+        #left_img_undistorted = cv2.undistort(left_img, left_camera_matrix, left_dist_coefs)
+        #right_img_undistorted = cv2.undistort(right_img, left_camera_matrix, left_dist_coefs)
+
         # loop over faces
         for left_rect, right_rect in zip(left_faces, right_faces):
             # ignore faces that are partially outside of image
@@ -177,35 +180,37 @@ def processing(left_frame, right_frame, done, args):
                 face_id = 999999
 
             # convert landmarks to numpy array
-            left_landmarks = np.array([[p.x, p.y] for p in left_landmarks.parts()])
-            right_landmarks = np.array([[p.x, p.y] for p in right_landmarks.parts()])
+            left_landmarks = np.array([[p.x, p.y] for p in left_landmarks.parts()], dtype=np.float32)
+            right_landmarks = np.array([[p.x, p.y] for p in right_landmarks.parts()], dtype=np.float32)
+
+            left_landmarks_undistorted = cv2.undistortPoints(left_landmarks[np.newaxis], left_camera_matrix, left_dist_coefs, R=left_rotation_matrix, P=left_proj_matrix)[0]
+            right_landmarks_undistorted = cv2.undistortPoints(right_landmarks[np.newaxis], right_camera_matrix, right_dist_coefs, R=right_rotation_matrix, P=right_proj_matrix)[0]
 
             # find the distance of camera from face (which is the same as distance of face from camera)
             #print "left_proj_matrix:", left_proj_matrix.dtype
             #print "right_proj_matrix:", right_proj_matrix.dtype
-            #print "left_landmarks:", left_landmarks.T.astype(np.float64).dtype
-            #print "right_landmarks:", right_landmarks.T.astype(np.float64).dtype
-            landmarks_mm = cv2.triangulatePoints(left_proj_matrix, right_proj_matrix, left_landmarks.T.astype(np.float64), right_landmarks.T.astype(np.float64))
-            # convert to homogeneous coordinates
-            landmarks_mm /= landmarks_mm[3]
-            landmarks_mm = landmarks_mm[:3]
-            landmarks_mm = landmarks_mm.T
+            #print "left_landmarks:", left_landmarks.T.astype(np.float32).dtype
+            #print "right_landmarks:", right_landmarks.T.astype(np.float32).dtype
+            landmarks_mm = cv2.triangulatePoints(left_proj_matrix, right_proj_matrix, left_landmarks_undistorted.T, right_landmarks_undistorted.T)
+            landmarks_mm /= landmarks_mm[3] # convert to homogeneous coordinates
+            landmarks_mm = landmarks_mm[:3] # get rid of ones
+            landmarks_mm = landmarks_mm.T   # coordinates as second dimension
             #print landmarks_mm, landmarks_mm.shape
+
+            landmarks_mm = np.dot(landmarks_mm, camera_rotation)    # fix error from camera angle
+            landmarks_mm += (args.camera_x, args.camera_y, args.camera_z) # translate to global coordinates
 
             # face image in mirror is 2x smaller
             # see http://www.physicsclassroom.com/class/refln/Lesson-2/What-Portion-of-a-Mirror-is-Required-to-View-an-Im
-            eyes_mm = landmarks_mm[27]
-            #landmarks_mm = (landmarks_mm - eyes_mm) // 2 + eyes_mm
-
-            #landmarks_mm = np.dot(landmarks_mm, camera_rotation)    # fix error from camera angle
-            #landmarks_mm += (args.camera_x, args.camera_y, args.camera_z) # translate to global coordinates
+            center_mm = landmarks_mm[27]
+            landmarks_mm = (landmarks_mm - center_mm) // 2 + center_mm
 
             # only if landmarks are within the tv screen
             if args.tv_left <= np.mean(landmarks_mm[:,0]) <= args.tv_right:
                 ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
                 #ret = mqtt.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
                 ret = mqtt.publish("rtv_all/face_new/%d" % (face_id), json.dumps({
-                        'nose_global_mm': landmarks_mm[27].astype(np.int).tolist(),
+                        'nose_global_mm': center_mm.astype(np.int).tolist(),
                         #'faceimg_global_mm': [left, top, right, bottom],
                         #'landmarks_faceimg_px': face_landmarks.tolist(),
                         'landmarks_global_mm': landmarks_mm.astype(np.int).tolist(), 
@@ -220,12 +225,18 @@ def processing(left_frame, right_frame, done, args):
                 cv2.rectangle(right_img, (right_rect.left(), right_rect.top()), (right_rect.right(), right_rect.bottom()), (255, 0, 0), thickness=2)
 
                 # plot face landmarks for testing
-                for idx, pos in enumerate(left_landmarks):
+                for pos in left_landmarks:
                     cv2.circle(left_img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
-                for idx, pos in enumerate(right_landmarks):
+                for pos in right_landmarks:
                     cv2.circle(right_img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
 
-                text = "x: %d, y: %d, z: %d" % tuple(eyes_mm)
+                # plot face landmarks for testing
+                #for pos in left_landmarks_undistorted:
+                #    cv2.circle(left_img_undistorted, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
+                #for pos in right_landmarks_undistorted:
+                #    cv2.circle(right_img_undistorted, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
+
+                text = "x: %d, y: %d, z: %d" % tuple(center_mm)
                 cv2.putText(right_img, text, (5, right_img.shape[0] - 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255, 255, 255), thickness=1)
 
         fps_frames += 1
@@ -242,6 +253,9 @@ def processing(left_frame, right_frame, done, args):
             cv2.imshow('left', left_img)
             cv2.imshow('right', right_img)
 
+            #cv2.imshow('left_undistorted', left_img_undistorted)
+            #cv2.imshow('right_undistorted', right_img_undistorted)
+
             if cv2.waitKey(1) & 0xFF == 27:
                 done.value = 1
                 break
@@ -256,16 +270,14 @@ def processing(left_frame, right_frame, done, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--left_calibration_file", default='calibrate_left_default.npz')
-    parser.add_argument("--right_calibration_file", default='calibrate_right_default.npz')
-    parser.add_argument("--stereo_calibration_file", default='calibration_stereo_default.npz')
+    parser.add_argument("--calibration_file", default='calibration_stereo_a3v2.npz')
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
-    parser.add_argument("--camera_x", type=int, default=3330)
-    parser.add_argument("--camera_y", type=int, default=-20)
-    parser.add_argument("--camera_z", type=int, default=-10)
-    parser.add_argument("--camera_anglex", type=float, default=13)
-    parser.add_argument("--camera_angley", type=float, default=0)
+    parser.add_argument("--camera_x", type=int, default=3277)
+    parser.add_argument("--camera_y", type=int, default=0)
+    parser.add_argument("--camera_z", type=int, default=0)
+    parser.add_argument("--camera_anglex", type=float, default=24.2)
+    parser.add_argument("--camera_angley", type=float, default=1)
     parser.add_argument("--camera_anglez", type=float, default=0)
     parser.add_argument("--display", action="store_true", default=True)
     parser.add_argument("--no_display", action="store_false", dest='display')
