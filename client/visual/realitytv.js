@@ -23,6 +23,8 @@ var stripes, stripes1, stripes2, stripes3;
 
 var sweep_history = [];
 
+var calibrate_mode = 0;
+
 //////////////////
 // Module
 
@@ -66,6 +68,8 @@ gfx.start(function (err) {
     draw_stripes();
     main_loop();
 
+    // draw_calibrate_img();
+
 });
 
 amino.fonts.registerFont({
@@ -102,6 +106,8 @@ client.on('message', (topic, message) => {
 
     if(topics[1] === 'calibrate') {
  
+        calibrate_mode = 1;
+
         el_id = 0;
 
         if (typeof calibration_elements[el_id] === "undefined") {
@@ -115,14 +121,21 @@ client.on('message', (topic, message) => {
 
         }
 
+       var px_calib_x1 = 100;
+        var px_calib_x2 = 1800;
+        var px_calib_y1 = 100;
+        var px_calib_y2 = 1000;
+
+
         var calib_coords = [px_calib_x1, px_calib_y1, px_calib_x2, px_calib_y1, px_calib_x2, px_calib_y2, px_calib_x1, px_calib_y2];
 
         calibration_elements[el_id].geometry(calib_coords);
 
         console.log("CALIBRATE " + calib_coords);
 
-///////////////////////////////////////////////////////////////////
+        draw_calibrate_img();
 
+///////////////////////////////////////////////////////////////////
 
     } else if (topic === 'sweep/scan_xz'){
 
@@ -392,6 +405,44 @@ function draw_img(faceframe){
 
 } // draw img
 
+//////////////////////////////////////////
+
+var calibrate_img = null;
+
+
+
+function draw_calibrate_img(){
+
+
+    if(calibrate_img == null){
+
+        calibrate_img = gfx.createImageView().opacity(1.0).x(640).y(20).w(640).h(480);
+        root_group.add(calibrate_img);
+        console.log("NEW calibrate image");
+
+    } 
+
+    if(client_id=="rtv1"){
+        var port = 5001;
+    } else if(client_id=="rtv2"){
+        var port = 5002;
+    } else if(client_id=="rtv3"){
+        var port = 5003;
+    } 
+
+    calibrate_img.src("http://rtv0.local:"+ port +"/frame.jpg?rand=" + Math.random() );
+    // calibrate_img.src("http://192.168.22.100/rtv/img/loading_f1.png?rand=" + Math.random() );
+
+    if( calibrate_mode == 1 ){
+
+        setTimeout(function(){
+            draw_calibrate_img();
+        },1000);
+
+    }
+
+
+} // draw draw_calibrate_img
 
 ///////////////////////////////////////////////
 
