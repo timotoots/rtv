@@ -430,7 +430,7 @@ function draw_calibrate_img(){
 
         setTimeout(function(){
             draw_calibrate_img();
-        },100);
+        },200);
 
     }
 
