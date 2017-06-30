@@ -137,7 +137,7 @@ def processing(left_frame, right_frame, done, args):
         right_proj_matrix = calibration['right_proj_matrix']
     else:
         left_camera_matrix = right_camera_matrix = get_camera_matrix(args.frame_width, args.frame_height, args.sensor_width, args.sensor_height, args.focal_length)
-        left_dist_coefs = right_dist_coefs = np.array([[ 0.24229091, -0.57693401,  0.00773281, -0.00155601,  0.48140698]])
+        left_dist_coefs = right_dist_coefs = np.array([[  2.08534841e-01,  -5.26737125e-01,  -8.08675824e-04, 1.97423599e-04,   4.07777369e-01]]) # np.array([[ 0.24229091, -0.57693401,  0.00773281, -0.00155601,  0.48140698]])
         left_rotation_matrix = right_rotation_matrix = None
         left_proj_matrix = get_proj_matrix(left_camera_matrix, 0)
         right_proj_matrix = get_proj_matrix(right_camera_matrix, args.right_camera_shift)
