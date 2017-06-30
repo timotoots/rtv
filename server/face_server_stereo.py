@@ -154,7 +154,7 @@ def processing(left_frame, right_frame, done, args):
     while True:
         # fetch left and right images.
         # NB! there must be no processing in between fetching left and right, 
-        # otherwise it confuses stereo vision
+        # otherwise it confuses stereo vision.
         left_img = np.frombuffer(left_frame.raw, dtype=np.uint8)
         right_img = np.frombuffer(right_frame.raw, dtype=np.uint8)
         left_img = left_img.reshape((args.frame_height, args.frame_width, 3))
@@ -355,10 +355,10 @@ if __name__ == '__main__':
     parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--left_video_url", default='http://rtv3b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--left_video_url", default='http://rtv2b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--left_video_camera", type=int, default=3)
     parser.add_argument("--right_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--right_video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--right_video_url", default='http://rtv2.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--right_video_camera", type=int, default=1)
     parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
     parser.add_argument("--profile")
