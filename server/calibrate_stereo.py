@@ -88,6 +88,18 @@ print "right_camera_matrix after:", right_camera_matrix
 left_rotation_matrix, right_rotation_matrix, left_proj_matrix, right_proj_matrix, depth_mapping_matrix, ROIL, ROIR = \
     cv2.stereoRectify(cameraMatrix1=left_camera_matrix, cameraMatrix2=right_camera_matrix, distCoeffs1=left_dist_coefs, distCoeffs2=right_dist_coefs, imageSize=(args.frame_width, args.frame_height), R=stereo_rotation_matrix, T=stereo_trans_matrix)
 
+reconst_points = []
+for left_corners, right_corners in zip(left_points, right_points):
+    left_corners_undistorted = cv2.undistortPoints(left_corners[np.newaxis], left_camera_matrix, left_dist_coefs, R=left_rotation_matrix, P=left_proj_matrix)[0]
+    right_corners_undistorted = cv2.undistortPoints(right_corners[np.newaxis], right_camera_matrix, right_dist_coefs, R=right_rotation_matrix, P=right_proj_matrix)[0]
+    reconst_point = cv2.triangulatePoints(left_proj_matrix, right_proj_matrix, left_corners_undistorted.T, right_corners_undistorted.T)
+    reconst_point /= reconst_point[3] # convert to homogeneous coordinates
+    reconst_point = reconst_point[:3] # get rid of ones
+    reconst_point = reconst_point.T   # coordinates as second dimension
+    reconst_points.append(reconst_point)
+
+print "RMS from reprojected points:", np.mean(np.linalg.norm(np.array(obj_points) - np.array(reconst_points), axis=-1))
+
 np.savez(args.stereo_calibration_file, 
     left_camera_matrix=left_camera_matrix,
     right_camera_matrix=right_camera_matrix,
@@ -103,7 +115,11 @@ np.savez(args.stereo_calibration_file,
     right_proj_matrix=right_proj_matrix, 
     depth_mapping_matrix=depth_mapping_matrix,
     image_width=args.frame_width, 
-    image_height=args.frame_height)
+    image_height=args.frame_height,
+    left_points=left_points,
+    right_points=right_points,
+    obj_points=obj_points,
+    reconst_points=reconst_points)
 
 print "stereo_rotation_matrix:", stereo_rotation_matrix.shape
 #print stereo_rotation_matrix
