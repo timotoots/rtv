@@ -56,7 +56,7 @@ def on_message(client1, userdata, message):
             print (output)
             client1.publish(client_id + "/control_log/"+msg,output)
 
-            subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"])
+            subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
             client1.publish(client_id + "/control_log/"+msg,"draw started")
 
         if msg == "app_kill":
