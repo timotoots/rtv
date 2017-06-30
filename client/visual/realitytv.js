@@ -422,22 +422,15 @@ function draw_calibrate_img(){
 
     } 
 
-    if(client_id=="rtv1"){
-        var port = 5001;
-    } else if(client_id=="rtv2"){
-        var port = 5002;
-    } else if(client_id=="rtv3"){
-        var port = 5003;
-    } 
 
-    calibrate_img.src("http://rtv0.local:"+ port +"/frame.jpg?rand=" + Math.random() );
+    calibrate_img.src("http://rtv0.local:8000/"+ client_id +"/frame.jpg?rand=" + Math.random() );
     // calibrate_img.src("http://192.168.22.100/rtv/img/loading_f1.png?rand=" + Math.random() );
 
     if( calibrate_mode == 1 ){
 
         setTimeout(function(){
             draw_calibrate_img();
-        },1000);
+        },100);
 
     }
 
