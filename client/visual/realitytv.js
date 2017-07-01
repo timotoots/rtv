@@ -28,6 +28,7 @@ var calibrate_mode = 0;
 var lidar_bar = {};
 var lidar_bar_width_mm = 100;
 var stripes_coverbox;
+        var persons_side = "L";
 
     var  reality = {"lidar_persons":0,"stripes_fading":0};
 
@@ -158,7 +159,7 @@ client.on('message', (topic, message) => {
 
           for (var i = 0; i < map.length; i++) {
 
-              if (map[i][1] > 10 && map[i][1] < 3500){
+              if (map[i][1] > 10 && map[i][1] < 3500 && map[i][0] > 0 && map[i][0] < 4000){
                 new_map.unshift(map[i]);
               }
           }
@@ -336,29 +337,53 @@ function lidar_loop(){
 
         var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
 
-
+    // animate stripes on  - coverbox move out
     if(person_seen == 1 && reality["lidar_persons"]==0 && reality["stripes_fading"]==0){
 
+        console.log("stripes ON");
         reality["lidar_persons"] = 1;
         reality["stripes_fading"] = 1;
 
-        // stripes.opacity.anim().from(0).to(1).dur(10000).start();
-        stripes_coverbox.w.anim().from(cover_box_width).to(0).dur(2000).start();
+
+        if(persons_side == "L"){
+            var current_pos = fm.mm2px_x(0);
+            var to_pos = fm.mm2px_x(4000);
+            persons_side = "R";
+        } else {
+            var current_pos = fm.mm2px_x(0);
+            var to_pos = fm.mm2px_x(-4000);
+            persons_side = "L";
+
+        }
+
+     
+
+        stripes_coverbox.x.anim().from(current_pos).to(to_pos).dur(2000).start();
+        stripes_coverbox.opacity.anim().from(1).to(0).delay(2000).dur(1).start();
+
 
         setTimeout(function(){
          reality["stripes_fading"] = 0;
-        },2000);
+        },2200);
+
+    // animate stripes off - coverbox fade in
 
     } else if(person_seen == 0 && reality["lidar_persons"]>0 && reality["stripes_fading"]==0){
+
+        console.log("stripes OFF");
+
 
         reality["stripes_fading"] = 1;
         reality["lidar_persons"] = 0;
 
-        stripes_coverbox.w.anim().from(0).to(cover_box_width).dur(2000).start();
+        var to_pos = fm.mm2px_x(0);
+
+        stripes_coverbox.x(to_pos);
+        stripes_coverbox.opacity.anim().from(0).to(1).delay(100).dur(2000).start();
 
         setTimeout(function(){
          reality["stripes_fading"] = 0;
-        },2000);
+        },2200);
 
     }
 
