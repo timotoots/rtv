@@ -174,6 +174,41 @@ client.on('message', (topic, message) => {
         var msg = message.toString();
         var faceframe = JSON.parse(msg);
 
+
+          faceframe["center_point_nose"] = [ faceframe["nose_global_mm"][0],faceframe["nose_global_mm"][1] ];
+
+          var all_x = [];
+          var all_y = [];
+
+          for (var i = 0; i < faceframe["landmarks_global_mm"].length; i++) {
+              all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+              all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+          }
+
+          faceframe["center_point_all_median"] = [ arr.median(all_x), arr.median(all_y) ];
+          faceframe["center_point_all_average"] = [ arr.mean(all_x), arr.mean(all_y) ];
+
+
+          for (var i = 36; i <= 47; i++) {
+              all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+              all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+          }
+
+
+          faceframe["center_point_eyes_median"] = [ arr.median(all_x), arr.median(all_y) ];
+
+          faceframe["center_point_mideyes"] = [ faceframe["landmarks_global_mm"][27][0],faceframe["landmarks_global_mm"][27][1] ];
+
+         faceframe["supermiddle"] = [];
+         faceframe["supermiddle"][0] = (faceframe["center_point_eyes_median"][0] + faceframe["center_point_mideyes"][0] +  faceframe["center_point_all_median"][0] +  faceframe["center_point_all_median"][0])/4;
+         faceframe["supermiddle"][1] = (faceframe["center_point_eyes_median"][1] + faceframe["center_point_mideyes"][1] +  faceframe["center_point_all_median"][1] +  faceframe["center_point_all_median"][1])/4;
+
+          // console.log(faceframe);
+
+
+
+
+
         // Init face and save to history
         faces = fm.check_history(faceframe, faces);
 
@@ -196,25 +231,29 @@ client.on('message', (topic, message) => {
 
         // draw_text(faceframe);
 
-        draw_square(faceframe);
-        draw_dotface(faceframe);
+        // draw_dotface(faceframe);
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
+
 /*
-        if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["crosshairs"]["status"] == "grid"){
 
-            // console.log(faces[faceframe.id]["movement"]["status"]);
+        if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["movement"]["still_timer"] == "stopped"){
 
-            faces[faceframe.id]["crosshairs"]["status"] = "anim";
 
-            crosshairs_to_face(faceframe);
+            faces[faceframe.id]["movement"]["still_timer"] = "started";
 
-            setTimeout(function(faceframe){ faces[faceframe.id]["crosshairs"]["status"] = "grid"; },30000,faceframe);
+            // crosshairs_to_face(faceframe);
+
+            setTimeout(function(faceframe){ faces[faceframe.id]["movement"]["still_timer"] = "stopped"; },1000,faceframe);
             
 
         }
+        */
 
-*/
+                    draw_square(faceframe);
+// draw_realtime_square(faceframe);
+
+
 
     } 
 
@@ -654,7 +693,7 @@ function draw_dotface(faceframe){
     if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
 
         faces[faceframe.id]["el"]["dotface"] = [];
-        var box_width = 5; // in px
+        var box_width = 2; // in px
 
         for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
             var coords_x = fm.mm2px_x(faceframe.landmarks_global_mm[i][0]);
@@ -663,6 +702,14 @@ function draw_dotface(faceframe){
             faces[faceframe.id]["el"]["dotface"][i] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FFFFFF').opacity(1.0);
             root_group.add(faces[faceframe.id]["el"]["dotface"][i]);
         } // for
+
+            var box_width = 5; // in px
+
+            var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+            var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+
+            faces[faceframe.id]["el"]["dotface"][100] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FF0000').opacity(1.0);
+            root_group.add(faces[faceframe.id]["el"]["dotface"][100]);
 
         console.log("NEW dotface / FACE_ID:" + faceframe.id);
 
@@ -692,6 +739,12 @@ function draw_dotface(faceframe){
         faces[faceframe.id]["el"]["dotface"][i].x(coords_x);
         faces[faceframe.id]["el"]["dotface"][i].y(coords_y);
 
+        // colordots
+        var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+        var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+        faces[faceframe.id]["el"]["dotface"][100].x(coords_x);
+        faces[faceframe.id]["el"]["dotface"][100].y(coords_y);
+
 
     } // for
 
@@ -705,6 +758,80 @@ function draw_dotface(faceframe){
 //////////////////////////////////////////
 
 function draw_square(faceframe){
+
+
+    var square_side_px = 200;
+   
+    // Create element
+    if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
+
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).fill("#000000").opacity(1);
+        root_group.add(faces[faceframe.id]["el"]["square"]);
+        console.log("NEW square / FACE_ID:" + faceframe.id);
+        // faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
+
+    } 
+
+
+    // var coords_x_rect = fm.mm2px_x(faceframe.supermiddle[0]) - square_side_px/2;
+    // var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
+    
+
+    console.log(faces[faceframe.id]["movement"]);
+
+    var coords_x_rect = fm.mm2px_x( faces[faceframe.id]["movement"]["still_coords"][0]);
+    var coords_y_rect = fm.mm2px_y( faces[faceframe.id]["movement"]["still_coords"][1]-20);
+
+            
+    if (faces[faceframe.id]["movement"]["status"]=="still" && faces[faceframe.id]["movement"]["square_status"] == "hidden" ){
+
+        faces[faceframe.id]["movement"]["square_status"] = "animating";
+      
+    
+        faces[faceframe.id]["el"]["square"].x(coords_x_rect-square_side_px/2);
+        faces[faceframe.id]["el"]["square"].y(coords_y_rect-square_side_px/2);
+
+        // faces[faceframe.id]["el"]["square"].opacity.anim().from(0).to(1).delay(10).dur(400).start();
+    
+
+        faces[faceframe.id]["el"]["square"].x.anim().from(coords_x_rect).to(coords_x_rect-square_side_px/2).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect).to(coords_y_rect-square_side_px/2).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].w.anim().from(0).to(square_side_px).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].h.anim().from(0).to(square_side_px).dur(1000).start();
+
+        setTimeout(function(faceframe){
+                    faces[faceframe.id]["movement"]["square_status"] = "visible";
+                },2500, faceframe);
+
+
+
+    } else if (faces[faceframe.id]["movement"]["status"]=="moving" &&  faces[faceframe.id]["movement"]["square_status"] == "visible"){
+
+        faces[faceframe.id]["movement"]["square_status"] = "animating";
+                setTimeout(function(faceframe){
+                    faces[faceframe.id]["movement"]["square_status"] = "hidden";
+                },2000, faceframe);
+
+        faces[faceframe.id]["el"]["square"].x.anim().from(coords_x_rect-square_side_px/2).to(coords_x_rect).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect-square_side_px/2).to(coords_y_rect).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].w.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].h.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+
+        // faces[faceframe.id]["el"]["square"].opacity.anim().from(1).to(0).dur(400).start();
+    
+
+    } 
+
+    // faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
+    // console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
+
+
+}
+
+/////////////////////////////
+
+
+function draw_realtime_square(faceframe){
 
     var map = faceframe.landmarks_global_mm;
 
@@ -775,9 +902,11 @@ function draw_square(faceframe){
 
 //////////////////////////////////////////
 
+//////////////////////////////////////////
 
 
-function draw_text(faceframe){
+
+function draw_z_text(faceframe){
 
       
     var map = faceframe.landmarks_global_mm;
@@ -824,6 +953,38 @@ function draw_text(faceframe){
 
 
 } // if draw_text(faceframe)
+////////////////////////////////////////////////////////////////
+
+function draw_text(faceframe){
+
+      
+    var map = faceframe.landmarks_global_mm;
+    var coords_x = fm.mm2px_x(faceframe.supermiddle[0])-200;
+    var coords_y = fm.mm2px_y(faceframe.supermiddle[1])-50;
+
+    if(typeof faces[faceframe.id]["el"]["text"] === "undefined"){
+
+        faces[faceframe.id]["el"]["text"] = gfx.createText().x(coords_x).y(coords_y).fontSize(20).fontName('ISOCTEUR').text("face_id: " + faceframe.face_id).fontWeight(200);
+        root_group.add(faces[faceframe.id]["el"]["text"]);
+        console.log("NEW text / FACE_ID:" + faceframe.id);
+
+    } 
+  
+
+    var text_str = faces[faceframe.id]["movement"]["status"];
+
+    // move text
+    faces[faceframe.id]["el"]["text"].x(coords_x);
+    faces[faceframe.id]["el"]["text"].y(coords_y);
+
+    faces[faceframe.id]["el"]["text"].text(text_str);
+
+
+    console.log("MOVE text / FACE_ID:" + faceframe.id + " geometry:" + coords_x + " y:" + coords_y);
+
+
+} // if draw_text(faceframe)
+
 
 //////////////////////////////////////////
 
