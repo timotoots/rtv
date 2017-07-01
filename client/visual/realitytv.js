@@ -25,6 +25,11 @@ var sweep_history = [];
 
 var calibrate_mode = 0;
 
+var all_depth = [];
+var lidar_bar = {};
+var lidar_bar_width_mm = 100;
+
+
 //////////////////
 // Module
 
@@ -67,7 +72,8 @@ gfx.start(function (err) {
     draw_crosshairs();
     draw_stripes();
     main_loop();
-
+    init_lidar_bar();
+    lidar_loop();
     // draw_calibrate_img();
 
 });
@@ -143,12 +149,20 @@ client.on('message', (topic, message) => {
         var map = JSON.parse(msg);
 
            // Clean history
-          if (sweep_history.length > 10){
+          if (sweep_history.length > 2){
               sweep_history.pop();
+          }
+          var new_map = [];
+
+          for (var i = 0; i < map.length; i++) {
+
+              if (map[i][1] > 10 && map[i][1] < 3500){
+                new_map.unshift(map[i]);
+              }
           }
 
           // Add frame to history
-          sweep_history.unshift(map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
+          sweep_history.unshift(new_map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
 
 
     } else if(topics[1] === 'face_new' && el_id) {
@@ -227,6 +241,102 @@ function main_loop(){
 
 
 } // function main_loop()
+
+
+
+function init_lidar_bar(){
+
+    var bar_width_px = fm.mm2px_x(1000+lidar_bar_width_mm*2) - fm.mm2px_x(1000+lidar_bar_width_mm);
+
+    for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+        
+        lidar_bar[i] = {};
+        var coords_x = fm.mm2px_x(i);
+        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).y(1032).w(bar_width_px).h(10).fill('FF0000').opacity(1.0);
+        root_group.add(lidar_bar[i].el);
+
+    }
+    
+    // console.log(lidar_bar);
+
+
+
+}
+
+function lidar_loop(){
+
+
+ for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+      lidar_bar[i].z_average = 0;
+}
+
+    if(typeof sweep_history[0] != "undefined"){
+
+        var z_points = {};
+
+
+        for (var j = 0; j < sweep_history.length; j++) {
+   
+
+            for (var i = 0; i < sweep_history[j].length; i++) {
+
+
+                var lidar_slot_id = Math.round(sweep_history[j][i][0] / lidar_bar_width_mm) * lidar_bar_width_mm;
+             
+
+                if (typeof lidar_bar[lidar_slot_id] != "undefined"){
+
+                    if (typeof z_points[lidar_slot_id] === "undefined"){
+                        z_points[lidar_slot_id] = [];
+                    }
+
+                   z_points[lidar_slot_id].unshift(sweep_history[j][i][1]);
+                } 
+            }
+
+        }
+
+        // add average to lidar_bar
+
+        // console.log(z_points);
+
+
+        Object.keys(z_points).forEach(function(key) {
+
+             lidar_bar[key].z_average = arr.median(z_points[key]);
+
+        });
+
+      
+
+
+    }
+
+    for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+        if (lidar_bar[i].z_average != 0) {
+
+            var opacity = lidar_bar[i].z_average/3500;
+            opacity = 1;
+            lidar_bar[i].el.opacity(opacity);
+
+        } else {
+
+            lidar_bar[i].el.opacity(0);
+     
+        }
+     
+
+
+    }
+
+
+
+
+ setTimeout(function(){
+        lidar_loop();
+    },10);
+
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
