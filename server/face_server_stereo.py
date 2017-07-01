@@ -137,7 +137,7 @@ def processing(left_frame, right_frame, done, args):
         right_proj_matrix = calibration['right_proj_matrix']
     else:
         left_camera_matrix = right_camera_matrix = get_camera_matrix(args.frame_width, args.frame_height, args.sensor_width, args.sensor_height, args.focal_length)
-        left_dist_coefs = right_dist_coefs = np.array([[ 0.24229091, -0.57693401,  0.00773281, -0.00155601,  0.48140698]])
+        left_dist_coefs = right_dist_coefs = np.array([[  2.08534841e-01,  -5.26737125e-01,  -8.08675824e-04, 1.97423599e-04,   4.07777369e-01]]) # np.array([[ 0.24229091, -0.57693401,  0.00773281, -0.00155601,  0.48140698]])
         left_rotation_matrix = right_rotation_matrix = None
         left_proj_matrix = get_proj_matrix(left_camera_matrix, 0)
         right_proj_matrix = get_proj_matrix(right_camera_matrix, args.right_camera_shift)
@@ -154,7 +154,7 @@ def processing(left_frame, right_frame, done, args):
     while True:
         # fetch left and right images.
         # NB! there must be no processing in between fetching left and right, 
-        # otherwise it confuses stereo vision
+        # otherwise it confuses stereo vision.
         left_img = np.frombuffer(left_frame.raw, dtype=np.uint8)
         right_img = np.frombuffer(right_frame.raw, dtype=np.uint8)
         left_img = left_img.reshape((args.frame_height, args.frame_width, 3))
@@ -331,7 +331,7 @@ if __name__ == '__main__':
     parser.add_argument("--sensor_width", type=float, default=3.68)  # in mm
     parser.add_argument("--sensor_height", type=float, default=2.76) # in mm
     parser.add_argument("--focal_length", type=float, default=3.04)  # in mm
-    parser.add_argument("--right_camera_shift", type=float, default=-120)  # in mm
+    parser.add_argument("--right_camera_shift", type=float, default=-100)  # in mm
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--camera_x", type=int, default=3294)
@@ -355,10 +355,10 @@ if __name__ == '__main__':
     parser.add_argument("--fps_frames", type=int, default=100)
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--left_video_url", default='http://rtv3b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--left_video_url", default='http://rtv2b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--left_video_camera", type=int, default=3)
     parser.add_argument("--right_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--right_video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--right_video_url", default='http://rtv2.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--right_video_camera", type=int, default=1)
     parser.add_argument("--profile_type", choices=['profile', 'pprofile'], default='pprofile')
     parser.add_argument("--profile")

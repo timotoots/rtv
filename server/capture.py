@@ -59,6 +59,9 @@ def processing(last_frame, done, args):
             print "\r", count,
             sys.stdout.flush()
 
+        if args.write_frame:
+            cv2.imwrite(args.write_frame, img)
+
         # Display the resulting frame
         cv2.imshow('img', img)
         if cv2.waitKey(args.interval) & 0xFF == 27:
@@ -72,15 +75,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("output_dir")
     parser.add_argument("--count", type=int, default=100)
-    parser.add_argument("--rows", type=int, default=9)
-    parser.add_argument("--cols", type=int, default=6)
+    parser.add_argument("--rows", type=int, default=6)
+    parser.add_argument("--cols", type=int, default=9)
     parser.add_argument("--pattern", choices=['chess', 'circles'], default='chess')
     parser.add_argument("--interval", type=int, default=1000)
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--video_url", default='http://rtv1b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--video_camera", type=int, default=0)
+    parser.add_argument("--write_frame", default='faces/rtv1/frame.jpg')
     args = parser.parse_args()
 
     if not os.path.exists(args.output_dir):

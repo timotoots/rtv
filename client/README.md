@@ -34,7 +34,8 @@ sudo nano /etc/default/keyboard
 
 # Install RTV Git repository
 
-	sudo apt-get install git python-flask
+	sudo apt-get install git python-flask python3 python3-pip
+	sudo pip3 install paho-mqtt
 	sudo chown pi:pi /opt/
 	cd /opt/
 	git clone https://github.com/timotoots/rtv.git

@@ -63,6 +63,10 @@ def processing(left_frame, right_frame, done, args):
             print "\r", count,
             sys.stdout.flush()
 
+        if args.write_frame:
+            frame = np.hstack([left_img[:, :args.frame_width // 2], right_img[:, args.frame_width // 2:]])
+            cv2.imwrite(args.write_frame, frame)
+
         cv2.imshow('left', left_img)
         cv2.imshow('right', right_img)
 
@@ -77,17 +81,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("output_dir")
     parser.add_argument("--count", type=int, default=100)
-    parser.add_argument("--rows", type=int, default=9)
-    parser.add_argument("--cols", type=int, default=6)
+    parser.add_argument("--rows", type=int, default=6)
+    parser.add_argument("--cols", type=int, default=9)
     parser.add_argument("--interval", type=int, default=1000)
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--left_video_url", default='http://rtv3b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--left_video_url", default='http://rtv1b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--left_video_camera", type=int, default=3)
     parser.add_argument("--right_video_source", choices=['camera', 'url'], default='url')
-    parser.add_argument("--right_video_url", default='http://rtv3.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
+    parser.add_argument("--right_video_url", default='http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--right_video_camera", type=int, default=1)
+    parser.add_argument("--write_frame", default='faces/rtv1/frame.jpg')
     args = parser.parse_args()
 
     if not os.path.exists(args.output_dir):
