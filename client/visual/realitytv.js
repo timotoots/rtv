@@ -25,9 +25,11 @@ var sweep_history = [];
 
 var calibrate_mode = 0;
 
-var all_depth = [];
 var lidar_bar = {};
 var lidar_bar_width_mm = 100;
+var stripes_coverbox;
+
+    var  reality = {"lidar_persons":0,"stripes_fading":0};
 
 
 //////////////////
@@ -312,12 +314,15 @@ function lidar_loop(){
 
     }
 
+    var person_seen = 0;
+
     for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
         if (lidar_bar[i].z_average != 0) {
 
             var opacity = lidar_bar[i].z_average/3500;
             opacity = 1;
             lidar_bar[i].el.opacity(opacity);
+            person_seen = 1;
 
         } else {
 
@@ -326,6 +331,34 @@ function lidar_loop(){
         }
      
 
+
+    }
+
+        var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
+
+
+    if(person_seen == 1 && reality["lidar_persons"]==0 && reality["stripes_fading"]==0){
+
+        reality["lidar_persons"] = 1;
+        reality["stripes_fading"] = 1;
+
+        // stripes.opacity.anim().from(0).to(1).dur(10000).start();
+        stripes_coverbox.w.anim().from(cover_box_width).to(0).dur(2000).start();
+
+        setTimeout(function(){
+         reality["stripes_fading"] = 0;
+        },2000);
+
+    } else if(person_seen == 0 && reality["lidar_persons"]>0 && reality["stripes_fading"]==0){
+
+        reality["stripes_fading"] = 1;
+        reality["lidar_persons"] = 0;
+
+        stripes_coverbox.w.anim().from(0).to(cover_box_width).dur(2000).start();
+
+        setTimeout(function(){
+         reality["stripes_fading"] = 0;
+        },2000);
 
     }
 
@@ -809,6 +842,11 @@ return average_z;
 
 function draw_stripes(){
 
+    var coords_x = fm.mm2px_x(0);
+
+
+    var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
+
     stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).src("triibustik1000.png");
     stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
     stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
@@ -817,7 +855,12 @@ function draw_stripes(){
     stripes.add(stripes1);
     stripes.add(stripes2);
     stripes.add(stripes3);
+    
+    stripes_coverbox = gfx.createRect().x(coords_x).y(0).opacity(1.0).w(cover_box_width).h(1080).fill("#000000");
+
+
     root_group.add(stripes);
+    root_group.add(stripes_coverbox);
 
 }
 
