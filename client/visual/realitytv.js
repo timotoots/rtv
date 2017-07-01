@@ -25,6 +25,15 @@ var sweep_history = [];
 
 var calibrate_mode = 0;
 
+var lidar_bar = {};
+var lidar_bar_width_mm = 100;
+var stripes_coverbox;
+        var persons_side = "L";
+
+    var  reality = {"lidar_persons":0,"stripes_fading":0};
+
+var params = {"square_color":"#000000","lidar_color":"#FF0000"};
+
 //////////////////
 // Module
 
@@ -67,7 +76,8 @@ gfx.start(function (err) {
     draw_crosshairs();
     draw_stripes();
     main_loop();
-
+    init_lidar_bar();
+    lidar_loop();
     // draw_calibrate_img();
 
 });
@@ -143,19 +153,97 @@ client.on('message', (topic, message) => {
         var map = JSON.parse(msg);
 
            // Clean history
-          if (sweep_history.length > 10){
+          if (sweep_history.length > 2){
               sweep_history.pop();
+          }
+          var new_map = [];
+
+          for (var i = 0; i < map.length; i++) {
+
+              if (map[i][1] > 10 && map[i][1] < 3500 && map[i][0] > 0 && map[i][0] < 4000){
+                new_map.unshift(map[i]);
+              }
           }
 
           // Add frame to history
-          sweep_history.unshift(map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
+          sweep_history.unshift(new_map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
 
+
+    } else if(topics[1] === 'change_mode'){
+
+        var mode = message.toString();
+
+        if(mode == "stripes_off"){
+            stripes1.opacity(0);
+            stripes2.opacity(0);
+            stripes3.opacity(0); 
+            params["square_color"] = "#FFFFFF";
+            for (var i = 0; i < faces.length; i++) {
+                faces[i]["el"]["square"].fill(params["square_color"]);
+            }
+
+        } else if(mode == "stripes_on"){
+            stripes1.opacity(1);
+            stripes2.opacity(1);
+            stripes3.opacity(1); 
+            params["square_color"] = "#FFFFFF";
+
+            for (var i = 0; i < faces.length; i++) {
+                faces[i]["el"]["square"].fill(params["square_color"]);
+            }
+        } else if(mode == "lidar_off"){
+
+                params["lidar_color"] = "#FFFFFF";
+
+
+                for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+            
+                    lidar_bar[i].el.fill(params["lidar_color"]);
+                    lidar_bar[i].el.y(2000);
+                }
+
+        }
 
     } else if(topics[1] === 'face_new' && el_id) {
 
         // parse message
         var msg = message.toString();
         var faceframe = JSON.parse(msg);
+
+
+          faceframe["center_point_nose"] = [ faceframe["nose_global_mm"][0],faceframe["nose_global_mm"][1] ];
+
+          var all_x = [];
+          var all_y = [];
+
+          for (var i = 0; i < faceframe["landmarks_global_mm"].length; i++) {
+              all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+              all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+          }
+
+          faceframe["center_point_all_median"] = [ arr.median(all_x), arr.median(all_y) ];
+          faceframe["center_point_all_average"] = [ arr.mean(all_x), arr.mean(all_y) ];
+
+
+          for (var i = 36; i <= 47; i++) {
+              all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+              all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+          }
+
+
+          faceframe["center_point_eyes_median"] = [ arr.median(all_x), arr.median(all_y) ];
+
+          faceframe["center_point_mideyes"] = [ faceframe["landmarks_global_mm"][27][0],faceframe["landmarks_global_mm"][27][1] ];
+
+         faceframe["supermiddle"] = [];
+         faceframe["supermiddle"][0] = (faceframe["center_point_eyes_median"][0] + faceframe["center_point_mideyes"][0] +  faceframe["center_point_all_median"][0] +  faceframe["center_point_all_median"][0])/4;
+         faceframe["supermiddle"][1] = (faceframe["center_point_eyes_median"][1] + faceframe["center_point_mideyes"][1] +  faceframe["center_point_all_median"][1] +  faceframe["center_point_all_median"][1])/4;
+
+          // console.log(faceframe);
+
+
+
+
 
         // Init face and save to history
         faces = fm.check_history(faceframe, faces);
@@ -179,25 +267,29 @@ client.on('message', (topic, message) => {
 
         // draw_text(faceframe);
 
-        draw_square(faceframe);
-        draw_dotface(faceframe);
+        // draw_dotface(faceframe);
 
             // console.log(faces[faceframe.id]["movement"]["status"]);
+
 /*
-        if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["crosshairs"]["status"] == "grid"){
 
-            // console.log(faces[faceframe.id]["movement"]["status"]);
+        if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["movement"]["still_timer"] == "stopped"){
 
-            faces[faceframe.id]["crosshairs"]["status"] = "anim";
 
-            crosshairs_to_face(faceframe);
+            faces[faceframe.id]["movement"]["still_timer"] = "started";
 
-            setTimeout(function(faceframe){ faces[faceframe.id]["crosshairs"]["status"] = "grid"; },30000,faceframe);
+            // crosshairs_to_face(faceframe);
+
+            setTimeout(function(faceframe){ faces[faceframe.id]["movement"]["still_timer"] = "stopped"; },1000,faceframe);
             
 
         }
+        */
 
-*/
+                    draw_square(faceframe);
+// draw_realtime_square(faceframe);
+
+
 
     } 
 
@@ -227,6 +319,157 @@ function main_loop(){
 
 
 } // function main_loop()
+
+
+
+function init_lidar_bar(){
+
+    var bar_width_px = fm.mm2px_x(1000+lidar_bar_width_mm*2) - fm.mm2px_x(1000+lidar_bar_width_mm);
+
+    for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+        
+        lidar_bar[i] = {};
+        var coords_x = fm.mm2px_x(i);
+        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).y(1032).w(bar_width_px).h(10).fill(params["lidar_color"]).opacity(1.0);
+        root_group.add(lidar_bar[i].el);
+
+    }
+    
+    // console.log(lidar_bar);
+
+
+
+}
+
+function lidar_loop(){
+
+
+ for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+      lidar_bar[i].z_average = 0;
+}
+
+    if(typeof sweep_history[0] != "undefined"){
+
+        var z_points = {};
+
+
+        for (var j = 0; j < sweep_history.length; j++) {
+   
+
+            for (var i = 0; i < sweep_history[j].length; i++) {
+
+
+                var lidar_slot_id = Math.round(sweep_history[j][i][0] / lidar_bar_width_mm) * lidar_bar_width_mm;
+             
+
+                if (typeof lidar_bar[lidar_slot_id] != "undefined"){
+
+                    if (typeof z_points[lidar_slot_id] === "undefined"){
+                        z_points[lidar_slot_id] = [];
+                    }
+
+                   z_points[lidar_slot_id].unshift(sweep_history[j][i][1]);
+                } 
+            }
+
+        }
+
+        // add average to lidar_bar
+
+        // console.log(z_points);
+
+
+        Object.keys(z_points).forEach(function(key) {
+
+             lidar_bar[key].z_average = arr.median(z_points[key]);
+
+        });
+
+      
+
+
+    }
+
+    var person_seen = 0;
+
+    for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+        if (lidar_bar[i].z_average != 0) {
+
+            var opacity = lidar_bar[i].z_average/3500;
+            opacity = 1;
+            lidar_bar[i].el.opacity(opacity);
+            person_seen = 1;
+
+        } else {
+
+            lidar_bar[i].el.opacity(0);
+     
+        }
+     
+
+
+    }
+
+        var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
+
+    // animate stripes on  - coverbox move out
+    if(person_seen == 1 && reality["lidar_persons"]==0 && reality["stripes_fading"]==0){
+
+        console.log("stripes ON");
+        reality["lidar_persons"] = 1;
+        reality["stripes_fading"] = 1;
+
+
+        if(persons_side == "L"){
+            var current_pos = fm.mm2px_x(0);
+            var to_pos = fm.mm2px_x(4000);
+            persons_side = "R";
+        } else {
+            var current_pos = fm.mm2px_x(0);
+            var to_pos = fm.mm2px_x(-4000);
+            persons_side = "L";
+
+        }
+
+     
+
+        stripes_coverbox.x.anim().from(current_pos).to(to_pos).dur(2000).start();
+        stripes_coverbox.opacity.anim().from(1).to(0).delay(2000).dur(1).start();
+
+
+        setTimeout(function(){
+         reality["stripes_fading"] = 0;
+        },2200);
+
+    // animate stripes off - coverbox fade in
+
+    } else if(person_seen == 0 && reality["lidar_persons"]>0 && reality["stripes_fading"]==0){
+
+        console.log("stripes OFF");
+
+
+        reality["stripes_fading"] = 1;
+        reality["lidar_persons"] = 0;
+
+        var to_pos = fm.mm2px_x(0);
+
+        stripes_coverbox.x(to_pos);
+        stripes_coverbox.opacity.anim().from(0).to(1).delay(100).dur(2000).start();
+
+        setTimeout(function(){
+         reality["stripes_fading"] = 0;
+        },2200);
+
+    }
+
+
+
+
+ setTimeout(function(){
+        lidar_loop();
+    },10);
+
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -486,7 +729,7 @@ function draw_dotface(faceframe){
     if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
 
         faces[faceframe.id]["el"]["dotface"] = [];
-        var box_width = 5; // in px
+        var box_width = 2; // in px
 
         for (var i = 0; i < faceframe.landmarks_global_mm.length; i++) {
             var coords_x = fm.mm2px_x(faceframe.landmarks_global_mm[i][0]);
@@ -495,6 +738,14 @@ function draw_dotface(faceframe){
             faces[faceframe.id]["el"]["dotface"][i] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FFFFFF').opacity(1.0);
             root_group.add(faces[faceframe.id]["el"]["dotface"][i]);
         } // for
+
+            var box_width = 5; // in px
+
+            var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+            var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+
+            faces[faceframe.id]["el"]["dotface"][100] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FF0000').opacity(1.0);
+            root_group.add(faces[faceframe.id]["el"]["dotface"][100]);
 
         console.log("NEW dotface / FACE_ID:" + faceframe.id);
 
@@ -524,6 +775,12 @@ function draw_dotface(faceframe){
         faces[faceframe.id]["el"]["dotface"][i].x(coords_x);
         faces[faceframe.id]["el"]["dotface"][i].y(coords_y);
 
+        // colordots
+        var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+        var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+        faces[faceframe.id]["el"]["dotface"][100].x(coords_x);
+        faces[faceframe.id]["el"]["dotface"][100].y(coords_y);
+
 
     } // for
 
@@ -537,6 +794,80 @@ function draw_dotface(faceframe){
 //////////////////////////////////////////
 
 function draw_square(faceframe){
+
+
+    var square_side_px = 200;
+   
+    // Create element
+    if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
+
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).fill(params["square_color"]).opacity(1);
+        root_group.add(faces[faceframe.id]["el"]["square"]);
+        console.log("NEW square / FACE_ID:" + faceframe.id);
+        // faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
+
+    } 
+
+
+    // var coords_x_rect = fm.mm2px_x(faceframe.supermiddle[0]) - square_side_px/2;
+    // var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
+    
+
+    console.log(faces[faceframe.id]["movement"]);
+
+    var coords_x_rect = fm.mm2px_x( faces[faceframe.id]["movement"]["still_coords"][0]);
+    var coords_y_rect = fm.mm2px_y( faces[faceframe.id]["movement"]["still_coords"][1]-20);
+
+            
+    if (faces[faceframe.id]["movement"]["status"]=="still" && faces[faceframe.id]["movement"]["square_status"] == "hidden" ){
+
+        faces[faceframe.id]["movement"]["square_status"] = "animating";
+      
+    
+        faces[faceframe.id]["el"]["square"].x(coords_x_rect-square_side_px/2);
+        faces[faceframe.id]["el"]["square"].y(coords_y_rect-square_side_px/2);
+
+        // faces[faceframe.id]["el"]["square"].opacity.anim().from(0).to(1).delay(10).dur(400).start();
+    
+
+        faces[faceframe.id]["el"]["square"].x.anim().from(coords_x_rect).to(coords_x_rect-square_side_px/2).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect).to(coords_y_rect-square_side_px/2).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].w.anim().from(0).to(square_side_px).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].h.anim().from(0).to(square_side_px).dur(1000).start();
+
+        setTimeout(function(faceframe){
+                    faces[faceframe.id]["movement"]["square_status"] = "visible";
+                },2500, faceframe);
+
+
+
+    } else if (faces[faceframe.id]["movement"]["status"]=="moving" &&  faces[faceframe.id]["movement"]["square_status"] == "visible"){
+
+        faces[faceframe.id]["movement"]["square_status"] = "animating";
+                setTimeout(function(faceframe){
+                    faces[faceframe.id]["movement"]["square_status"] = "hidden";
+                },2000, faceframe);
+
+        faces[faceframe.id]["el"]["square"].x.anim().from(coords_x_rect-square_side_px/2).to(coords_x_rect).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect-square_side_px/2).to(coords_y_rect).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].w.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square"].h.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+
+        // faces[faceframe.id]["el"]["square"].opacity.anim().from(1).to(0).dur(400).start();
+    
+
+    } 
+
+    // faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
+    // console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
+
+
+}
+
+/////////////////////////////
+
+
+function draw_realtime_square(faceframe){
 
     var map = faceframe.landmarks_global_mm;
 
@@ -607,9 +938,11 @@ function draw_square(faceframe){
 
 //////////////////////////////////////////
 
+//////////////////////////////////////////
 
 
-function draw_text(faceframe){
+
+function draw_z_text(faceframe){
 
       
     var map = faceframe.landmarks_global_mm;
@@ -656,6 +989,38 @@ function draw_text(faceframe){
 
 
 } // if draw_text(faceframe)
+////////////////////////////////////////////////////////////////
+
+function draw_text(faceframe){
+
+      
+    var map = faceframe.landmarks_global_mm;
+    var coords_x = fm.mm2px_x(faceframe.supermiddle[0])-200;
+    var coords_y = fm.mm2px_y(faceframe.supermiddle[1])-50;
+
+    if(typeof faces[faceframe.id]["el"]["text"] === "undefined"){
+
+        faces[faceframe.id]["el"]["text"] = gfx.createText().x(coords_x).y(coords_y).fontSize(20).fontName('ISOCTEUR').text("face_id: " + faceframe.face_id).fontWeight(200);
+        root_group.add(faces[faceframe.id]["el"]["text"]);
+        console.log("NEW text / FACE_ID:" + faceframe.id);
+
+    } 
+  
+
+    var text_str = faces[faceframe.id]["movement"]["status"];
+
+    // move text
+    faces[faceframe.id]["el"]["text"].x(coords_x);
+    faces[faceframe.id]["el"]["text"].y(coords_y);
+
+    faces[faceframe.id]["el"]["text"].text(text_str);
+
+
+    console.log("MOVE text / FACE_ID:" + faceframe.id + " geometry:" + coords_x + " y:" + coords_y);
+
+
+} // if draw_text(faceframe)
+
 
 //////////////////////////////////////////
 
@@ -699,15 +1064,25 @@ return average_z;
 
 function draw_stripes(){
 
-    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).src("triibustik1000.png");
-    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
-    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
+    var coords_x = fm.mm2px_x(0);
+
+
+    var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
+
+    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).opacity(1).src("triibustik1000.png");
+    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).opacity(1).src("triibustik1000.png");
+    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).opacity(1).src("triibustik1000.png");
 
     stripes  = gfx.createGroup();
     stripes.add(stripes1);
     stripes.add(stripes2);
     stripes.add(stripes3);
+    
+    stripes_coverbox = gfx.createRect().x(coords_x).y(0).opacity(1.0).w(cover_box_width).h(1080).fill("#000000");
+
+
     root_group.add(stripes);
+    root_group.add(stripes_coverbox);
 
 }
 

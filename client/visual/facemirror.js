@@ -93,7 +93,7 @@
 
     if(typeof faces[faceframe.id]["movement"] === "undefined"){
 
-        faces[faceframe.id]["movement"] = {"status":"moving"};
+        faces[faceframe.id]["movement"] = {"status":"moving", "still_timer":"stopped", "square_status":"hidden"};
 
     }
 
@@ -101,14 +101,14 @@
 
 
     // current coordinates of the nose
-    var coords_x = this.mm2px_x(faceframe.nose_global_mm[0]);
-    var coords_y = this.mm2px_y(faceframe.nose_global_mm[1]);
+    var coords_x = this.mm2px_x(faceframe.supermiddle[0]);
+    var coords_y = this.mm2px_y(faceframe.supermiddle[1]);
  
-    var movement_tolerance_mm = 50;
+    var movement_tolerance_mm = 80;
 
     // how many samples we use in the average
-    if (faces[faceframe.id]["history"].length > 20){
-        var samples_for_average = 20;
+    if (faces[faceframe.id]["history"].length > 5){
+        var samples_for_average = 5;
     } else {
         var samples_for_average = faces[faceframe.id]["history"].length ;
     }
@@ -118,8 +118,8 @@
     var total_y = 0;
     for (var i = 0; i < samples_for_average; i++) {
         
-        total_x +=  faces[faceframe.id]["history"][i].nose_global_mm[0];
-        total_y +=  faces[faceframe.id]["history"][i].nose_global_mm[1];
+        total_x +=  faces[faceframe.id]["history"][i].supermiddle[0];
+        total_y +=  faces[faceframe.id]["history"][i].supermiddle[1];
 
     }
 
@@ -142,7 +142,7 @@
 
         // console.log("STILLLL");
         faces[faceframe.id]["movement"]["status"] = "still";
-        faces[faceframe.id]["movement"]["still_coords"] = coords_x + "," + coords_y;
+        faces[faceframe.id]["movement"]["still_coords"] = [(total_x / samples_for_average),(total_y / samples_for_average)];
 
         var d = new Date();
         faces[faceframe.id]["movement"]["still_time"] = d.getTime();
