@@ -27,7 +27,8 @@
     	}
 
     	.control_log{
-    		width: 24%;
+            font-size: 9px;
+    		width: 12%;
     		height: 100%;
     		float: left;
     		border: 1px solid #FFFFFF;
@@ -117,13 +118,13 @@
                		var div_id = "#" + topics[0] + "_control_log";
                		console.log(div_id);
 
-               		$(div_id).prepend("<hr/><b>" + topic + "</b><br/><br/>" + msg);
+               		$(div_id).prepend("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
              
 
 
                } else if(topics[1] === 'control') {
             			
-               		$("#rtv_all_control").append("<hr/><b>" + topic + "</b><br/><br/>" + msg);
+               		$("#rtv_all_control").append("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
 
                }
 
@@ -139,13 +140,29 @@
 <body>
 <div id="buttons"> 
 
-	<button onclick="send('rtv_all/control', 'test')">MQTT Test</button>
-	<button onclick="send('rtv_all/control', 'git_pull')">Git pull</button>
-	<button onclick="send('rtv_all/control', 'reboot')">Reboot client RPi</button>
-	<button onclick="send('rtv_all/control', 'app_reboot')">Reboot client GFX</button>
-	<button onclick="send('rtv_all/control', 'app_kill')">Kill client GFX</button>
-	<button onclick="send('rtv_all/control', 'shutdown')">Shutdown RPi</button>
-    <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate Mode</button>
+	<button onclick="send('rtv_all/control', 'uptime')">Uptime</button>
+    <button onclick="send('rtv_all/control', 'rpi_info')">Rpi Info</button>
+    <button onclick="send('rtv_all/control', 'top')">Top</button>
+
+    Git:
+    <button onclick="send('rtv_all/control', 'git_pull')">Pull</button>
+    <button onclick="send('rtv_all/control', 'git_status')">Status</button>
+    <button onclick="send('rtv_all/control', 'git_diff')">Diff</button>
+
+    Raspberries: 
+	<button onclick="send('rtv_all/control', 'reboot')">Reboot</button>
+    <button onclick="send('rtv_all/control', 'shutdown')">Shutdown</button>
+
+    Graphics:
+	<button onclick="send('rtv_all/control', 'app_reboot')">Reload GFX</button>
+	<button onclick="send('rtv_all/control', 'app_kill')">Kill GFX</button>
+    <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate</button>
+  
+    Modes:
+    <button onclick="send('rtv_all/change_mode', 'stripes_on')">stripes_on</button>
+    <button onclick="send('rtv_all/change_mode', 'stripes_off')">stripes_off</button>
+    <button onclick="send('rtv_all/change_mode', 'lidar_off')">lidar_off</button>
+    <button onclick="send('rtv_all/change_mode', 'lidar_on')">lidar_on</button>
 
 
 
@@ -153,9 +170,12 @@
 </div>
 
 <div id="rtv_all_control" class="control_log"></div>
-<div id="rtv1_main_control_log" class="control_log"></div>
-<div id="rtv2_main_control_log" class="control_log"></div>
-<div id="rtv3_main_control_log" class="control_log"></div>
+<div id="rtv1_main_control_log" class="control_log">RTV1</div>
+<div id="rtv1b_main_control_log" class="control_log">RTV1B</div>
+<div id="rtv2_main_control_log" class="control_log">RTV2</div>
+<div id="rtv2b_main_control_log" class="control_log">RTV2B</div>
+<div id="rtv3_main_control_log" class="control_log">RTV3</div>
+<div id="rtv3b_main_control_log" class="control_log">RTV3b</div>
 
 </body>
 
