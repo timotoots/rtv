@@ -32,6 +32,7 @@ var stripes_coverbox;
 
     var  reality = {"lidar_persons":0,"stripes_fading":0};
 
+var params = {"square_color":"#000000","lidar_color":"#FF0000"};
 
 //////////////////
 // Module
@@ -168,6 +169,41 @@ client.on('message', (topic, message) => {
           sweep_history.unshift(new_map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
 
 
+    } else if(topics[1] === 'change_mode'){
+
+        var mode = message.toString();
+
+        if(mode == "stripes_off"){
+            stripes1.opacity(0);
+            stripes2.opacity(0);
+            stripes3.opacity(0); 
+            params["square_color"] = "#FFFFFF";
+            for (var i = 0; i < faces.length; i++) {
+                faces[i]["el"]["square"].fill(params["square_color"]);
+            }
+
+        } else if(mode == "stripes_on"){
+            stripes1.opacity(1);
+            stripes2.opacity(1);
+            stripes3.opacity(1); 
+            params["square_color"] = "#FFFFFF";
+
+            for (var i = 0; i < faces.length; i++) {
+                faces[i]["el"]["square"].fill(params["square_color"]);
+            }
+        } else if(mode == "lidar_off"){
+
+                params["lidar_color"] = "#FFFFFF";
+
+
+                for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
+            
+                    lidar_bar[i].el.fill(params["lidar_color"]);
+                    lidar_bar[i].el.y(2000);
+                }
+
+        }
+
     } else if(topics[1] === 'face_new' && el_id) {
 
         // parse message
@@ -294,7 +330,7 @@ function init_lidar_bar(){
         
         lidar_bar[i] = {};
         var coords_x = fm.mm2px_x(i);
-        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).y(1032).w(bar_width_px).h(10).fill('FF0000').opacity(1.0);
+        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).y(1032).w(bar_width_px).h(10).fill(params["lidar_color"]).opacity(1.0);
         root_group.add(lidar_bar[i].el);
 
     }
@@ -765,7 +801,7 @@ function draw_square(faceframe){
     // Create element
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
 
-        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).fill("#000000").opacity(1);
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).fill(params["square_color"]).opacity(1);
         root_group.add(faces[faceframe.id]["el"]["square"]);
         console.log("NEW square / FACE_ID:" + faceframe.id);
         // faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
@@ -1033,9 +1069,9 @@ function draw_stripes(){
 
     var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
 
-    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).src("triibustik1000.png");
-    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
-    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
+    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).opacity(1).src("triibustik1000.png");
+    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).opacity(1).src("triibustik1000.png");
+    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).opacity(1).src("triibustik1000.png");
 
     stripes  = gfx.createGroup();
     stripes.add(stripes1);
