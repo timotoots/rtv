@@ -86,10 +86,17 @@ def on_connect(client, userdata, flags, rc):
     m="Connected flags"+str(flags)+"result code "\
     +str(rc)+"client1_id  "+str(client)
     print(m)
+ 
 
-client1 = paho.Client(client_id + "_control")                           #create client object
+def on_disconnect(client, userdata, rc):
+    if rc != 0:
+        print ("Unexpected MQTT disconnection. Will auto-reconnect")
+
+
+client1 = paho.Client(client_id + "_control", 0)                           #create client object
 client1.on_connect = on_connect        #attach function to callback
 client1.on_message = on_message        #attach function to callback
+client1.on_disconnect = on_disconnect
 time.sleep(1)
 
 client1.connect(broker,port)      
