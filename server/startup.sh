@@ -3,7 +3,7 @@
 # Startup script for RTV server
 
 #while true; do
-#     sleep 1000
+     sleep 20s
 #done
 
 # sleep till raspberrys are up?
