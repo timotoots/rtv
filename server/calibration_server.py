@@ -46,9 +46,9 @@ def frame():
     right_img = right_img.reshape((args.frame_height, args.frame_width, 3))
 
     frame = np.hstack([left_img[:, :args.frame_width // 2], right_img[:, args.frame_width // 2:]])
-    cv2.rectangle(frame, (args.frame_width // 2, 0), (args.frame_width // 2 + 1, args.frame_height - 1), (255, 255, 0))
+    #cv2.rectangle(frame, (args.frame_width // 2, 0), (args.frame_width // 2 + 1, args.frame_height - 1), (255, 255, 0))
 
-    ret, buf = cv2.imencode('.jpg', frame)
+    ret, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 100])
     return send_file(io.BytesIO(buf), attachment_filename='frame.jpg', mimetype='image/jpeg')
 
 if __name__ == '__main__':

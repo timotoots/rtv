@@ -1,1 +1,1 @@
-python calibrate_server.py --port 5001 --left_video_url 'http://rtv1b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=' --right_video_url 'http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview='
+python calibration_server.py --port 5001 --left_video_url 'http://rtv1b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=' --right_video_url 'http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview='

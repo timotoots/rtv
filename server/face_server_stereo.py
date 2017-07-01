@@ -331,7 +331,7 @@ if __name__ == '__main__':
     parser.add_argument("--sensor_width", type=float, default=3.68)  # in mm
     parser.add_argument("--sensor_height", type=float, default=2.76) # in mm
     parser.add_argument("--focal_length", type=float, default=3.04)  # in mm
-    parser.add_argument("--right_camera_shift", type=float, default=-120)  # in mm
+    parser.add_argument("--right_camera_shift", type=float, default=-100)  # in mm
     parser.add_argument("--frame_width", type=int, default=640)
     parser.add_argument("--frame_height", type=int, default=480)
     parser.add_argument("--camera_x", type=int, default=3294)

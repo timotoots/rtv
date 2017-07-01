@@ -63,6 +63,10 @@ def processing(left_frame, right_frame, done, args):
             print "\r", count,
             sys.stdout.flush()
 
+        if args.write_frame:
+            frame = np.hstack([left_img[:, :args.frame_width // 2], right_img[:, args.frame_width // 2:]])
+            cv2.imwrite(args.write_frame, frame)
+
         cv2.imshow('left', left_img)
         cv2.imshow('right', right_img)
 
@@ -88,6 +92,7 @@ if __name__ == '__main__':
     parser.add_argument("--right_video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--right_video_url", default='http://rtv1.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--right_video_camera", type=int, default=1)
+    parser.add_argument("--write_frame", default='faces/rtv1/frame.jpg')
     args = parser.parse_args()
 
     if not os.path.exists(args.output_dir):

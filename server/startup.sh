@@ -10,9 +10,9 @@
 
 # start face servers
 cd /opt/rtv/server
-./rtv1.sh --no_display &
-./rtv2.sh --no_display &
-./rtv3.sh --no_display &
+./rtv1_stereo.sh --no_display &
+./rtv2_stereo_calib.sh --no_display &
+./rtv3_stereo_calib.sh --no_display &
 
 # nearest neighbor server
 # to clean up server delete database

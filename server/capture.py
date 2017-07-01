@@ -59,6 +59,9 @@ def processing(last_frame, done, args):
             print "\r", count,
             sys.stdout.flush()
 
+        if args.write_frame:
+            cv2.imwrite(args.write_frame, img)
+
         # Display the resulting frame
         cv2.imshow('img', img)
         if cv2.waitKey(args.interval) & 0xFF == 27:
@@ -81,6 +84,7 @@ if __name__ == '__main__':
     parser.add_argument("--video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--video_url", default='http://rtv1b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
     parser.add_argument("--video_camera", type=int, default=0)
+    parser.add_argument("--write_frame", default='faces/rtv1/frame.jpg')
     args = parser.parse_args()
 
     if not os.path.exists(args.output_dir):

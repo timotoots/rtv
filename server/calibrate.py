@@ -33,9 +33,9 @@ pattern_points *= args.square_size
 
 obj_points = []
 img_points = []
-img_files = sorted(glob(os.path.join(args.input_dir, '*.jpg')))
+img_files = []
 
-for img_file in img_files:
+for img_file in sorted(glob(os.path.join(args.input_dir, '*.jpg'))):
     print img_file,
     img = cv2.imread(img_file, cv2.IMREAD_GRAYSCALE)
     assert img is not None
@@ -54,6 +54,7 @@ for img_file in img_files:
     if found:
         img_points.append(corners.reshape(-1, 2))
         obj_points.append(pattern_points)
+        img_files.append(img_file)
         print "found"
 
         if args.debug_dir:
@@ -68,9 +69,17 @@ rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.calibrateCamera(obj_points, i
 #dist_coefs = np.zeros((5,))
 #rms = None
 
-np.savez(args.calibration_file, rms=rms, camera_matrix=camera_matrix, dist_coefs=dist_coefs, image_width=args.frame_width, image_height=args.frame_height)
-
 print "RMS:", rms
 print "camera_matrix:", camera_matrix
 print "dist_coefs:", dist_coefs
 print "image_size:", (args.frame_width, args.frame_height)
+
+proj_points = []
+for obj_point, rvec, tvec in zip(obj_points, rvecs, tvecs):
+    proj_point, jacobian = cv2.projectPoints(obj_point, rvec, tvec, camera_matrix, dist_coefs)
+    proj_points.append(proj_point[:, 0])
+
+print "RMS from reprojected points:", np.mean(np.linalg.norm(np.array(img_points) - np.array(proj_points), axis=-1))
+
+np.savez(args.calibration_file, rms=rms, camera_matrix=camera_matrix, dist_coefs=dist_coefs, image_width=args.frame_width, image_height=args.frame_height, 
+        img_points=img_points, rotation_vectors=rvecs, translation_vectors=tvecs, proj_points=proj_points, img_files=img_files)
