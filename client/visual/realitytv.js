@@ -33,7 +33,7 @@ var persons_side = "L";
 
 var reality = {"lidar_persons":0,"stripes_fading":0};
 
-var params = {"square_color":"#000000","lidar_color":"#FF0000", "stripes":"on", "draw_dotface":"on","draw_lidar":"off","draw_text":"off","draw_animated_square":"off","draw_square_realtime":"off","draw_square":"on" };
+var params = {"square_color":"#FFFFFF","lidar_color":"#FF0000", "stripes":"off", "draw_dotface":"on","draw_lidar":"off","draw_text":"on","draw_animated_square":"off","draw_square_realtime":"off","draw_square":"on" };
 
 //////////////////
 // Module
@@ -242,10 +242,10 @@ client.on('message', (topic, message) => {
 			// draw_square(faceframe);
 		}
 
-		if( faces[faceframe.id]["movement"]["status"] == "still" && params["draw_square"]=="on"){
-			console.log("squar!!!!");
+		// if( faces[faceframe.id]["movement"]["status"] == "still" && params["draw_square"]=="on"){
+		// 	// console.log("squar!!!!");
 	
-		}
+		// }
 
 		draw_square(faceframe);
 
@@ -920,7 +920,7 @@ function draw_square(faceframe){
     // var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
     
 
-    console.log("draw_square " + faces[faceframe.id]["movement"]);
+    // console.log("draw_square " + faces[faceframe.id]["movement"]);
 
     var coords_x_rect = fm.mm2px_x( faces[faceframe.id]["movement"]["still_coords"][0]);
     var coords_y_rect = fm.mm2px_y( faces[faceframe.id]["movement"]["still_coords"][1]-20);

@@ -104,7 +104,7 @@
     var coords_x = this.mm2px_x(faceframe.supermiddle[0]);
     var coords_y = this.mm2px_y(faceframe.supermiddle[1]);
  
-    var movement_tolerance_mm = 120;
+    var movement_tolerance_mm = 20;
 
     // how many samples we use in the average
     if (faces[faceframe.id]["history"].length > 3){
@@ -142,7 +142,8 @@
 
         // console.log("STILLLL");
         faces[faceframe.id]["movement"]["status"] = "still";
-        faces[faceframe.id]["movement"]["still_coords"] = [(total_x / samples_for_average),(total_y / samples_for_average)];
+        //faces[faceframe.id]["movement"]["still_coords"] = [(total_x / samples_for_average),(total_y / samples_for_average)];
+        faces[faceframe.id]["movement"]["still_coords"] = [faceframe.supermiddle[0],faceframe.supermiddle[1]];
 
         var d = new Date();
         faces[faceframe.id]["movement"]["still_time"] = d.getTime();
