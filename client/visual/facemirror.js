@@ -104,11 +104,11 @@
     var coords_x = this.mm2px_x(faceframe.supermiddle[0]);
     var coords_y = this.mm2px_y(faceframe.supermiddle[1]);
  
-    var movement_tolerance_mm = 80;
+    var movement_tolerance_mm = 120;
 
     // how many samples we use in the average
-    if (faces[faceframe.id]["history"].length > 5){
-        var samples_for_average = 5;
+    if (faces[faceframe.id]["history"].length > 3){
+        var samples_for_average = 3;
     } else {
         var samples_for_average = faces[faceframe.id]["history"].length ;
     }
