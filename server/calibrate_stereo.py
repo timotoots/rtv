@@ -23,7 +23,6 @@ left_dist_coefs = left_calibration['dist_coefs']
 # convert camera matrix for new resolution
 left_camera_matrix[0] *= args.frame_width / left_calibration['image_width']
 left_camera_matrix[1] *= args.frame_height / left_calibration['image_height']
-# TODO: do we need to convert dist coeff matrix as well?
 print "left RMS:", left_calibration['rms']
 
 right_calibration = np.load(args.right_calibration_file)
@@ -32,7 +31,6 @@ right_dist_coefs = right_calibration['dist_coefs']
 # convert camera matrix for new resolution
 right_camera_matrix[0] *= args.frame_width / right_calibration['image_width']
 right_camera_matrix[1] *= args.frame_height / right_calibration['image_height']
-# TODO: do we need to convert dist coeff matrix as well?
 print "right RMS:", right_calibration['rms']
 
 pattern_size = (args.cols, args.rows)
@@ -98,7 +96,8 @@ for left_corners, right_corners in zip(left_points, right_points):
     reconst_point = reconst_point.T   # coordinates as second dimension
     reconst_points.append(reconst_point)
 
-print "RMS from reprojected points:", np.mean(np.linalg.norm(np.array(obj_points) - np.array(reconst_points), axis=-1))
+# this is bogus - obj_points are in different coordinate system
+#print "RMS from reprojected points:", np.mean(np.linalg.norm(np.array(obj_points) - np.array(reconst_points), axis=-1))
 
 np.savez(args.stereo_calibration_file, 
     left_camera_matrix=left_camera_matrix,
