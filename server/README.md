@@ -16,8 +16,8 @@ TODO: install CUDA and cuDNN for dlib
 
 Python dependencies
 
-	# OpenCV
-	sudo apt-get install python-opencv
+	# Ubuntu packages
+	sudo apt-get install python-opencv python-requests python-sklearn
 	# dlib dependencies
 	sudo apt-get install libboost-python-dev cmake
 	# dlib itself

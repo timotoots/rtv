@@ -27,12 +27,13 @@ var calibrate_mode = 0;
 
 var lidar_bar = {};
 var lidar_bar_width_mm = 100;
+
 var stripes_coverbox;
-        var persons_side = "L";
+var persons_side = "L";
 
-    var  reality = {"lidar_persons":0,"stripes_fading":0};
+var reality = {"lidar_persons":0,"stripes_fading":0};
 
-var params = {"square_color":"#000000","lidar_color":"#FF0000"};
+var params = {"square_color":"#FFFFFF","lidar_color":"#FF0000", "stripes":"off", "draw_dotface":"on","draw_lidar":"off","draw_text":"on","draw_animated_square":"off","draw_square_realtime":"off","draw_square":"on" };
 
 //////////////////
 // Module
@@ -43,7 +44,9 @@ fm.foo();
 
 
 
-///////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // MQTT connect 
 
@@ -58,7 +61,9 @@ client.on('connect', () => {
 
 })
 
-///////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Amino start and custom fonts
 
@@ -78,6 +83,7 @@ gfx.start(function (err) {
     main_loop();
     init_lidar_bar();
     lidar_loop();
+    stripes_loop();
     // draw_calibrate_img();
 
 });
@@ -102,7 +108,9 @@ amino.fonts.registerFont({
     }
 });
 
-///////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Drawing functions
 
@@ -131,7 +139,7 @@ client.on('message', (topic, message) => {
 
         }
 
-       var px_calib_x1 = 100;
+        var px_calib_x1 = 100;
         var px_calib_x2 = 1800;
         var px_calib_y1 = 100;
         var px_calib_y2 = 1000;
@@ -168,41 +176,9 @@ client.on('message', (topic, message) => {
           // Add frame to history
           sweep_history.unshift(new_map); // The unshift() method adds new items to the beginning of an array, and returns the new length.
 
+    } else if(topics[1] === 'params' && el_id){
 
-    } else if(topics[1] === 'change_mode'){
-
-        var mode = message.toString();
-
-        if(mode == "stripes_off"){
-            stripes1.opacity(0);
-            stripes2.opacity(0);
-            stripes3.opacity(0); 
-            params["square_color"] = "#FFFFFF";
-            for (var i = 0; i < faces.length; i++) {
-                faces[i]["el"]["square"].fill(params["square_color"]);
-            }
-
-        } else if(mode == "stripes_on"){
-            stripes1.opacity(1);
-            stripes2.opacity(1);
-            stripes3.opacity(1); 
-            params["square_color"] = "#FFFFFF";
-
-            for (var i = 0; i < faces.length; i++) {
-                faces[i]["el"]["square"].fill(params["square_color"]);
-            }
-        } else if(mode == "lidar_off"){
-
-                params["lidar_color"] = "#FFFFFF";
-
-
-                for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
-            
-                    lidar_bar[i].el.fill(params["lidar_color"]);
-                    lidar_bar[i].el.y(2000);
-                }
-
-        }
+    	change_params(el_id, message.toString());
 
     } else if(topics[1] === 'face_new' && el_id) {
 
@@ -255,23 +231,39 @@ client.on('message', (topic, message) => {
         check_hide(faceframe);
 
 
-
         // Real time drawings
         // draw_img(faceframe);
-        
+        // draw_realtime_square(faceframe);
         // draw_facepoly(faceframe);
 
-    
-        // draw_stripes();
+
+		if(faces[faceframe.id]["movement"]["status"] == "still"  && params["draw_animated_square"]=="on"){
+			draw_animated_square(faceframe);
+			// draw_square(faceframe);
+		}
+
+		// if( faces[faceframe.id]["movement"]["status"] == "still" && params["draw_square"]=="on"){
+		// 	// console.log("squar!!!!");
+	
+		// }
+
+		draw_square(faceframe);
+
+		// if(params["draw_square_realtime"]=="on"){
+		// 	draw_square(faceframe);
+		// }
 
 
-        // draw_text(faceframe);
+		if(params["draw_text"]=="on"){
+			draw_text(faceframe);
+		}
 
-        // draw_dotface(faceframe);
+		if(params["draw_dotface"]=="on"){
+			draw_dotface(faceframe);
+		}
 
-            // console.log(faces[faceframe.id]["movement"]["status"]);
 
-/*
+		/*
 
         if(faces[faceframe.id]["movement"]["status"] == "still" && faces[faceframe.id]["movement"]["still_timer"] == "stopped"){
 
@@ -286,8 +278,6 @@ client.on('message', (topic, message) => {
         }
         */
 
-                    draw_square(faceframe);
-// draw_realtime_square(faceframe);
 
 
 
@@ -296,22 +286,47 @@ client.on('message', (topic, message) => {
 
 })
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function change_params(id, val){
+
+	if (typeof params[id] != undefined){
+
+		params[id] = val;
+
+	}
+
+
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
-function main_loop(){
 
-    move_stripes();
+function main_loop(){
 
     // loop over all faces
     for (var i = 0; i < faces.length; i++) {
-
         
-        // face_dislay(i);
+        if(params["draw_animated_square"]=="on"){
+
+	        	  // face_dislay(i);
+	        if (faces[i]["el"]["anim_square_pattern"].y.value < -800){
+	            faces[i]["el"]["anim_square_pattern"].y(0);
+
+	        } else {
+	            faces[i]["el"]["anim_square_pattern"].y(faces[i]["el"]["anim_square_pattern"].y.value-2);
+
+	        }
+
+
+        }
+      
 
 
     }
-
 
     setTimeout(function(){
         main_loop();
@@ -321,6 +336,19 @@ function main_loop(){
 } // function main_loop()
 
 
+function stripes_loop(){
+
+    move_stripes();
+
+    setTimeout(function(){
+        stripes_loop();
+    },10);
+
+
+} // function main_loop()
+
+
+////////////////////////////////////////////////
 
 function init_lidar_bar(){
 
@@ -330,7 +358,9 @@ function init_lidar_bar(){
         
         lidar_bar[i] = {};
         var coords_x = fm.mm2px_x(i);
-        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).y(1032).w(bar_width_px).h(10).fill(params["lidar_color"]).opacity(1.0);
+        lidar_bar[i].el = gfx.createRect().x(coords_x-bar_width_px/2).w(bar_width_px).y(2000).h(10).fill(params["lidar_color"]).opacity(1.0);
+                 
+
         root_group.add(lidar_bar[i].el);
 
     }
@@ -341,11 +371,15 @@ function init_lidar_bar(){
 
 }
 
+////////////////////////////////////////////////
+
 function lidar_loop(){
 
 
  for (var i = 0; i < 4000; i = i + lidar_bar_width_mm) {
       lidar_bar[i].z_average = 0;
+      lidar_bar[i].el.fill(params["lidar_color"]);
+
 }
 
     if(typeof sweep_history[0] != "undefined"){
@@ -405,6 +439,12 @@ function lidar_loop(){
             lidar_bar[i].el.opacity(0);
      
         }
+
+        if( params["draw_lidar"] == "on"){
+        	lidar_bar[i].el.y(1032);
+        } else {
+        	lidar_bar[i].el.y(2000);
+        }        
      
 
 
@@ -524,12 +564,77 @@ function check_hide(faceframe){
 //
 // DRAWING FUNCTIONS
 
+function create_pattern_group(faceframe){
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"] = gfx.createGroup().x(0).y(0).w(200).h(200).clipRect(true);
+
+    faces[faceframe.id]["el"]["anim_square_pattern"] = gfx.createImageView().opacity(1.0).w(1000).h(1000).x(0).y(0);
+    faces[faceframe.id]["el"]["anim_square_pattern"].src("stripes90.png");
+    // faces[faceframe.id]["el"]["anim_square_pattern"].right(2).bottom(2).repeat('repeat');
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].add(faces[faceframe.id]["el"]["anim_square_pattern"]);
+
+    root_group.add(faces[faceframe.id]["el"]["anim_square_pattern_group"]);
+
+
+}
+
+function hide_animated_square(faceframe){
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].opacity.anim().from(1).to(0).dur(500).start();
+    
+}
+
+function draw_animated_square(faceframe){
+
+    var map = faceframe.landmarks_global_mm;
+ 
+    var coords_x_rect = fm.mm2px_x( faces[faceframe.id]["movement"]["still_coords"][0]);
+    var coords_y_rect = fm.mm2px_y( faces[faceframe.id]["movement"]["still_coords"][1]-20);
+
+        var square_side_px = 200;
+
+	coords_x_rect = coords_x_rect - square_side_px/2;
+    coords_y_rect = coords_y_rect - square_side_px/2;
+
+    if(typeof faces[faceframe.id]["el"]["anim_square_pattern"]=== "undefined"){
+
+        create_pattern_group(faceframe);
+  
+
+      
+        console.log("NEW square / FACE_ID:" + faceframe.id);
+
+        faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
+
+    } 
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].opacity.anim().from(1).to(1).dur(200).start();
+
+
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(200).start();
+    faces[faceframe.id]["el"]["anim_square_pattern_group"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
+
+         
+    faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
+    console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
+
+
+// loading_f0.png
+
+}
+
+
+
 var crosshair_offset_x = 333;
 var crosshair_offset_y = 333;
 
 
 
 //////////////////////////////////////////
+
+
 
 function draw_crosshairs(){
 
@@ -801,7 +906,7 @@ function draw_square(faceframe){
     // Create element
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
 
-        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).fill(params["square_color"]).opacity(1);
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).opacity(1);
         root_group.add(faces[faceframe.id]["el"]["square"]);
         console.log("NEW square / FACE_ID:" + faceframe.id);
         // faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
@@ -809,11 +914,13 @@ function draw_square(faceframe){
     } 
 
 
+    faces[faceframe.id]["el"]["square"].fill(params["square_color"]);
+
     // var coords_x_rect = fm.mm2px_x(faceframe.supermiddle[0]) - square_side_px/2;
     // var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
     
 
-    console.log(faces[faceframe.id]["movement"]);
+    // console.log("draw_square " + faces[faceframe.id]["movement"]);
 
     var coords_x_rect = fm.mm2px_x( faces[faceframe.id]["movement"]["still_coords"][0]);
     var coords_y_rect = fm.mm2px_y( faces[faceframe.id]["movement"]["still_coords"][1]-20);
@@ -1069,9 +1176,10 @@ function draw_stripes(){
 
     var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
 
-    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).opacity(1).src("triibustik1000.png");
-    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).opacity(1).src("triibustik1000.png");
-    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).opacity(1).src("triibustik1000.png");
+    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).src("triibustik1000.png");
+    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
+    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
+
 
     stripes  = gfx.createGroup();
     stripes.add(stripes1);
@@ -1088,11 +1196,20 @@ function draw_stripes(){
 
 function move_stripes(){
 
-    if (stripes.y.value < -1000){
-      stripes.y(0);
-    } else {
-      stripes.y(stripes.y.value-0.2);
-    }
+   if(params["stripes"]=="off"){
+
+   	// draw off screen
+		stripes.y(4000);
+
+   } else {
+
+	    if (stripes.y.value < -1000){
+	      stripes.y(0);
+	    } else {
+	      stripes.y(stripes.y.value-0.2);
+	    }
+
+   }
 
 }
 

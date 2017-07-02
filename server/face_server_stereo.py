@@ -1,3 +1,4 @@
+from __future__ import print_function
 import cv2
 import dlib
 import numpy as np
@@ -9,9 +10,9 @@ import time
 import math
 import argparse
 import os
-import urlparse
-import json
 import sys
+#import urlparse
+import json
 import requests
 
 def get_camera_matrix(imageWidth, imageHeight, sensorWidth, sensorHeight, focalLength):
@@ -68,7 +69,7 @@ def capture_pprofile(last_frame, done, args):
     prof.callgrind(open("callgrind.out.%s_capture" % args.profile, 'w'))
 
 def capture(last_frame, done, video_source, video_camera, video_url, args):
-    print "Starting %s..." % multiprocessing.current_process().name
+    print("Starting %s..." % multiprocessing.current_process().name)
 
     cap = cv2.VideoCapture()
     while not done.value:
@@ -113,7 +114,7 @@ def processing_pprofile(last_frame, done, args):
     prof.callgrind(open("callgrind.out.%s_processing" % args.profile, 'w'))
 
 def processing(left_frame, right_frame, done, args):
-    print "Starting %s..." % multiprocessing.current_process().name
+    print("Starting %s..." % multiprocessing.current_process().name)
 
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor(args.predictor_path)
@@ -164,9 +165,9 @@ def processing(left_frame, right_frame, done, args):
         left_gray = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
         left_faces = detector(left_gray, args.dlib_upscale)
 
-        left_ids = []
-        left_rects = {}
-        left_landmarkss = {}
+        left_rects = []
+        left_landmarkss = []
+        left_descriptors = []
         for rect in left_faces:
             # ignore faces that are partially outside of image
             if rect.left() < 0 or rect.right() >= args.frame_width or \
@@ -179,27 +180,34 @@ def processing(left_frame, right_frame, done, args):
             # compute face descriptor from (color!) image
             descriptor = facerec.compute_face_descriptor(left_img.copy(), landmarks)
 
+            left_rects.append(rect)
+            left_landmarkss.append(landmarks)
+            left_descriptors.append(list(descriptor))
+
+        if left_descriptors:
             # ask nearest neighbor server for identity of this face descriptor
             try:
-                r = requests.post(args.face_nn_url, json=list(descriptor))
+                r = requests.post(args.face_nn_url, json=left_descriptors)
                 r.raise_for_status()
-                face_id = int(r.text)
+                left_ids = r.json()
             except requests.exceptions.RequestException as e:
-                print e
+                print(e)
                 # if any error occurs, set dummy face id
-                face_id = 999999
-
-            left_ids.append(face_id)
-            left_rects[face_id] = rect
-            left_landmarkss[face_id] = landmarks
+                left_ids = 100000 + np.array(range(len(left_descriptors)))
+        else:
+            left_ids = []
+        #print("left_ids:", left_ids)
+        # convert arrays into dictionaries
+        left_rects = {id: left_rects[i] for i, id in enumerate(left_ids)}
+        left_landmarkss = {id: left_landmarkss[i] for i, id in enumerate(left_ids)}
 
         # detect right faces
         right_gray = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
         right_faces = detector(right_gray, args.dlib_upscale)
 
-        right_ids = []
-        right_rects = {}
-        right_landmarkss = {}
+        right_rects = []
+        right_landmarkss = []
+        right_descriptors = []
         for rect in right_faces:
             # ignore faces that are partially outside of image
             if rect.left() < 0 or rect.right() >= args.frame_width or \
@@ -212,19 +220,26 @@ def processing(left_frame, right_frame, done, args):
             # compute face descriptor from (color!) image
             descriptor = facerec.compute_face_descriptor(right_img.copy(), landmarks)
 
+            right_rects.append(rect)
+            right_landmarkss.append(landmarks)
+            right_descriptors.append(list(descriptor))
+
+        if right_descriptors:
             # ask nearest neighbor server for identity of this face descriptor
             try:
-                r = requests.post(args.face_nn_url, json=list(descriptor))
+                r = requests.post(args.face_nn_url, json=right_descriptors)
                 r.raise_for_status()
-                face_id = int(r.text)
+                right_ids = r.json()
             except requests.exceptions.RequestException as e:
-                print e
+                print(e)
                 # if any error occurs, set dummy face id
-                face_id = 999999
-
-            right_ids.append(face_id)
-            right_rects[face_id] = rect
-            right_landmarkss[face_id] = landmarks
+                right_ids = 100000 + np.array(range(len(right_descriptors)))
+        else:
+            right_ids = []
+        #print("right_ids:", right_ids)
+        # convert arrays into dictionaries
+        right_rects = {id: right_rects[i] for i, id in enumerate(right_ids)}
+        right_landmarkss = {id: right_landmarkss[i] for i, id in enumerate(right_ids)}
 
         #left_img_undistorted = cv2.undistort(left_img, left_camera_matrix, left_dist_coefs)
         #right_img_undistorted = cv2.undistort(right_img, left_camera_matrix, left_dist_coefs)
@@ -264,7 +279,7 @@ def processing(left_frame, right_frame, done, args):
 
             # only if landmarks are within the tv screen
             if args.tv_left <= np.mean(landmarks_mm[:,0]) <= args.tv_right:
-                ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
+                #ret = mqtt.publish("rtv_all/face/%d" % (face_id), str(landmarks_mm.tolist())) # publish
                 #ret = mqtt.publish("rtv_all/square/%d" % (face_id), "%d,%d" % (translation_vector[0], translation_vector[1])) # publish
                 ret = mqtt.publish("rtv_all/face_new/%d" % (face_id), json.dumps({
                         'nose_global_mm': center_mm.astype(np.int).tolist(),
@@ -299,7 +314,7 @@ def processing(left_frame, right_frame, done, args):
         fps_frames += 1
         fps_elapsed	= time.time() -	fps_start
         fps	= fps_frames / fps_elapsed
-        print "\rFPS: %.2f" % fps,
+        print("\rFPS: %.2f" % fps, end='')
         sys.stdout.flush()
 
         if args.display:

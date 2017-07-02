@@ -11,7 +11,7 @@
      python3 /opt/rtv/client/main.py &
 
 if [ "$HOSTNAME" = "rtv2" ]; then
-    /opt/rtv/client/sweep/sweep_xz.py &
+    cd /opt/rtv/client/sweep/ && python3 /opt/rtv/client/sweep/sweep_xz.py &
 fi
 
 

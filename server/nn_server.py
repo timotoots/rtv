@@ -3,36 +3,55 @@ import os.path
 import cPickle as pickle
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from flask import Flask, Response, request
+from flask import Flask, Response, request, jsonify
 
 app = Flask(__name__)
 
 @app.route('/', methods=['POST'])
 def search():
-    global args
+    global faces, faces2persons, persons, args
 
     # get JSON request
     content = request.get_json()
-    face = np.array(content)
+    descriptors = np.array(content)
 
-    # if database not empty
+    # if database is not empty
     if faces:
-        dists, ids = nn.kneighbors(face[np.newaxis])
-        if dists[0, 0] < args.radius_same:
-            person_id = faces2persons[ids[0, 0]]
-            # only add new person if somewhat far from existing
-            if dists[0, 0] > args.radius_extend:
-                faces2persons.append(person_id)
-                faces.append(face)
-                nn.fit(faces)
-            return Response(persons[person_id], mimetype='application/json')
+        # perform nearest neighbor search
+        dists, face_ids = nn.kneighbors(descriptors)
+        dists = dists[:, 0]
+        face_ids = face_ids[:, 0]
+    else:
+        # force addition of all faces
+        dists = [args.radius_same] * len(descriptors)
+        face_ids = range(len(descriptors))
 
-    person_id = len(persons)
-    persons.append(str(person_id))
-    faces2persons.append(person_id)
-    faces.append(face)
-    nn.fit(faces)
-    return Response(persons[person_id], mimetype='application/json')
+    refit = False
+    person_ids = []
+    for dist, face_id, desc in zip(dists, face_ids, descriptors):
+        # if person already exists, use existing id
+        if dist < args.radius_same:
+            person_id = faces2persons[face_id]
+            person_ids.append(person_id)
+            # only add face if somewhat far from existing
+            if dist > args.radius_extend:
+                faces2persons.append(person_id)
+                faces.append(desc)
+                refit = True
+        # if person is not in db, add it
+        else:
+            person_id = len(persons)
+            person_ids.append(person_id)
+            persons.append(str(person_id))
+            faces2persons.append(person_id)
+            faces.append(desc)
+            refit = True
+
+    # if added new faces, refit nearest neighbor database
+    if refit:
+        nn.fit(faces)
+
+    return jsonify(person_ids)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
