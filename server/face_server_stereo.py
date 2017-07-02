@@ -14,6 +14,7 @@ import sys
 #import urlparse
 import json
 import requests
+import cv2gpu
 
 def get_camera_matrix(imageWidth, imageHeight, sensorWidth, sensorHeight, focalLength):
     fx = imageWidth * focalLength / sensorWidth # in px
@@ -116,7 +117,15 @@ def processing_pprofile(last_frame, done, args):
 def processing(left_frame, right_frame, done, args):
     print("Starting %s..." % multiprocessing.current_process().name)
 
-    detector = dlib.get_frontal_face_detector()
+    if args.face_detector == 'dlib':
+        detector = dlib.get_frontal_face_detector()
+    elif args.face_detector == 'cv2gpu':
+        if cv2gpu.is_cuda_compatible():
+            cv2gpu.init_gpu_detector('haarcascade_frontalface_alt2_cuda.xml')
+        else:
+            cv2gpu.init_cpu_detector('haarcascade_frontalface_alt2.xml')
+    else:
+        assert False
     predictor = dlib.shape_predictor(args.predictor_path)
     facerec = dlib.face_recognition_model_v1(args.face_rec_model_path)
 
@@ -163,12 +172,21 @@ def processing(left_frame, right_frame, done, args):
 
         # detect left faces
         left_gray = cv2.cvtColor(left_img, cv2.COLOR_BGR2GRAY)
-        left_faces = detector(left_gray, args.dlib_upscale)
+        if args.face_detector == 'dlib':
+            left_faces = detector(left_gray, args.dlib_upscale)
+        elif args.face_detector == 'cv2gpu':
+            #cv2.imwrite('left_frame.jpg', left_gray)
+            left_faces = cv2gpu.find_faces(left_gray)
+        else:
+            assert False
 
         left_rects = []
         left_landmarkss = []
         left_descriptors = []
         for rect in left_faces:
+            if args.face_detector == 'cv2gpu':
+                x, y, w, h = rect
+                rect = dlib.rectangle(x, y, x + w, y + h)
             # ignore faces that are partially outside of image
             if rect.left() < 0 or rect.right() >= args.frame_width or \
                     rect.top() < 0 or rect.bottom() >= args.frame_height:
@@ -183,6 +201,14 @@ def processing(left_frame, right_frame, done, args):
             left_rects.append(rect)
             left_landmarkss.append(landmarks)
             left_descriptors.append(list(descriptor))
+
+            if args.display:
+                # plot blue rectangle when detected using face detection, green when detected using tracking
+                cv2.rectangle(left_img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0), thickness=2)
+
+                # plot face landmarks for testing
+                for pos in landmarks.parts():
+                    cv2.circle(left_img, (pos.x, pos.y), 1, color=(0, 255, 255), thickness=-1)
 
         if left_descriptors:
             # ask nearest neighbor server for identity of this face descriptor
@@ -203,12 +229,21 @@ def processing(left_frame, right_frame, done, args):
 
         # detect right faces
         right_gray = cv2.cvtColor(right_img, cv2.COLOR_BGR2GRAY)
-        right_faces = detector(right_gray, args.dlib_upscale)
+        if args.face_detector == 'dlib':
+            right_faces = detector(right_gray, args.dlib_upscale)
+        elif args.face_detector == 'cv2gpu':
+            #cv2.imwrite('right_frame.jpg', right_gray)
+            right_faces = cv2gpu.find_faces(right_gray)
+        else:
+            assert False
 
         right_rects = []
         right_landmarkss = []
         right_descriptors = []
         for rect in right_faces:
+            if args.face_detector == 'cv2gpu':
+                x, y, w, h = rect
+                rect = dlib.rectangle(x, y, x + w, y + h)
             # ignore faces that are partially outside of image
             if rect.left() < 0 or rect.right() >= args.frame_width or \
                     rect.top() < 0 or rect.bottom() >= args.frame_height:
@@ -223,6 +258,14 @@ def processing(left_frame, right_frame, done, args):
             right_rects.append(rect)
             right_landmarkss.append(landmarks)
             right_descriptors.append(list(descriptor))
+
+            if args.display:
+                # plot blue rectangle when detected using face detection, green when detected using tracking
+                cv2.rectangle(right_img, (rect.left(), rect.top()), (rect.right(), rect.bottom()), (255, 0, 0), thickness=2)
+
+                # plot face landmarks for testing
+                for pos in landmarks.parts():
+                    cv2.circle(right_img, (pos.x, pos.y), 1, color=(0, 255, 255), thickness=-1)
 
         if right_descriptors:
             # ask nearest neighbor server for identity of this face descriptor
@@ -292,22 +335,6 @@ def processing(left_frame, right_frame, done, args):
                     }))
 
             if args.display:
-                # plot blue rectangle when detected using face detection, green when detected using tracking
-                cv2.rectangle(left_img, (left_rect.left(), left_rect.top()), (left_rect.right(), left_rect.bottom()), (255, 0, 0), thickness=2)
-                cv2.rectangle(right_img, (right_rect.left(), right_rect.top()), (right_rect.right(), right_rect.bottom()), (255, 0, 0), thickness=2)
-
-                # plot face landmarks for testing
-                for pos in left_landmarks:
-                    cv2.circle(left_img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
-                for pos in right_landmarks:
-                    cv2.circle(right_img, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
-
-                # plot face landmarks for testing
-                #for pos in left_landmarks_undistorted:
-                #    cv2.circle(left_img_undistorted, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
-                #for pos in right_landmarks_undistorted:
-                #    cv2.circle(right_img_undistorted, tuple(pos), 1, color=(0, 255, 255), thickness=-1)
-
                 text = "x: %d, y: %d, z: %d" % tuple(center_mm)
                 cv2.putText(right_img, text, (5, right_img.shape[0] - 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(255, 255, 255), thickness=1)
 
@@ -364,6 +391,7 @@ if __name__ == '__main__':
     parser.add_argument("--mqtt_port", type=int, default=1883)
     parser.add_argument("--predictor_path", default='shape_predictor_68_face_landmarks.dat')
     parser.add_argument("--face_rec_model_path", default='dlib_face_recognition_resnet_model_v1.dat')    
+    parser.add_argument("--face_detector", choices=['dlib', 'cv2gpu'], default='cv2gpu')
     parser.add_argument("--dlib_upscale", type=int, default=1)
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
