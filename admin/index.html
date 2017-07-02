@@ -157,12 +157,29 @@
 	<button onclick="send('rtv_all/control', 'app_reboot')">Reload GFX</button>
 	<button onclick="send('rtv_all/control', 'app_kill')">Kill GFX</button>
     <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate</button>
-  
-    Modes:
-    <button onclick="send('rtv_all/change_mode', 'stripes_on')">stripes_on</button>
-    <button onclick="send('rtv_all/change_mode', 'stripes_off')">stripes_off</button>
-    <button onclick="send('rtv_all/change_mode', 'lidar_off')">lidar_off</button>
-    <button onclick="send('rtv_all/change_mode', 'lidar_on')">lidar_on</button>
+  <br/>
+    Square:
+    <button onclick="send('rtv_all/params/square_color', '#000000')">black</button>
+    <button onclick="send('rtv_all/params/square_color', '#FFFFFF')">white</button>
+    <button onclick="send('rtv_all/params/square_color', '#FF0000')">red</button>
+
+    Lidar:
+    <button onclick="send('rtv_all/params/draw_lidar', 'on')">on</button>
+    <button onclick="send('rtv_all/params/draw_lidar', 'off')">off</button>
+    <button onclick="send('rtv_all/params/lidar_color', '#FF0000')">red</button>
+    <button onclick="send('rtv_all/params/lidar_color', '#FFFFFF')">white</button>  
+
+    Stripes:
+    <button onclick="send('rtv_all/params/stripes', 'on')">on</button>
+    <button onclick="send('rtv_all/params/stripes', 'off')">off</button>
+
+    Dotface:
+    <button onclick="send('rtv_all/params/draw_dotface', 'on')">on</button>
+    <button onclick="send('rtv_all/params/draw_dotface', 'off')">off</button>
+
+   Dotface:
+    <button onclick="send('rtv_all/params/draw_square', 'on')">on</button>
+    <button onclick="send('rtv_all/params/draw_square', 'off')">off</button>
 
 
 
