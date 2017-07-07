@@ -39,7 +39,7 @@ var params = {
     "stripes":"on",
     "draw_dotface":"off",
     "draw_reddot":"on",
-    "draw_lidar":"off",
+    "draw_lidar":"on",
     "draw_text":"off",
     "draw_striped_square":"off",
     "draw_square_realtime":"off",
@@ -132,9 +132,31 @@ client.on('message', (topic, message) => {
         }
         var new_map = [];
 
+        var sideL = 0;
+        var sideR = 0;
+
         for (var i = 0; i < map.length; i++) {
 
-            if (map[i][1] > 10 && map[i][1] < 3500 && map[i][0] > 0 && map[i][0] < 4000){
+            if (map[i][1] > 100 && map[i][1] < 5000 && map[i][0] > 0 && map[i][0] < 4000 && map[i][4]>40){
+                
+
+                if(map[i][0]<2000){
+                    sideL++;
+                } else {
+                    sideL++;
+                }
+                if (sideL > 4 || sideR > 4){
+
+                    if (sideL > sideR ){
+                        action_happened("L");
+                    } else {
+                        action_happened("R");
+                    }
+
+
+                }
+
+
                 new_map.unshift(map[i]);
             }
         }
@@ -172,6 +194,7 @@ client.on('message', (topic, message) => {
         // add average to lidar_slots
         Object.keys(z_points).forEach(function(key) {
             lidar_slots[key].z_average = arr.median(z_points[key]);
+            console.log("lidar point x=" + key + " z=" + lidar_slots[key].z_average );
         });
 
 
@@ -275,8 +298,13 @@ function boot(){
       // onload
     draw_crosshairs();
     main_loop();
-    // init_lidar_slots();
-    // lidar_loop();
+    
+    if (params["draw_lidar"]=="on"){
+        lidar_slots_init();
+        // lidar_slots_loop();
+    }
+  
+    
     // stripes_loop();
     // draw_calibrate_img();
     init_stripes2();
@@ -434,9 +462,11 @@ function lidar_slots_init(){
 
 function lidar_slots_loop(){
 
+
     var person_seen = 0;
 
     for (var i = 0; i < 4000; i = i + lidar_slots_width_mm) {
+
 
         if (lidar_slots[i].z_average != 0) {
 
@@ -463,7 +493,7 @@ function lidar_slots_loop(){
     
     
  setTimeout(function(){
-        lidar_loop();
+        lidar_slots_loop();
     },10);
 
 }
