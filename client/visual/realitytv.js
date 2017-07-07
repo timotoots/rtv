@@ -189,6 +189,10 @@ client.on('message', (topic, message) => {
 
           faceframe["center_point_nose"] = [ faceframe["nose_global_mm"][0],faceframe["nose_global_mm"][1] ];
 
+          if(faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] < 50 && faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] > 30){
+
+
+
           var all_x = [];
           var all_y = [];
 
@@ -280,7 +284,12 @@ client.on('message', (topic, message) => {
         }
         */
 
+       } else {
+        console.log("noface" + faceframe.face_id);
+        console.log(faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0]);
 
+
+       }
 
 
     } 
