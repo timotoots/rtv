@@ -54,7 +54,7 @@ var last_action_time = time_started.getTime();
 //////////////////
 // Facemirror Module
 
-var Facemirror = require('./facemirror2.js');
+var Facemirror = require('./facemirror.js');
 var fm = new Facemirror({"client_id":client_id,"env":"node"});
 fm.foo();
 

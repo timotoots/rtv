@@ -38,7 +38,7 @@ var params = {"square_color":"#FFFFFF","lidar_color":"#FF0000", "stripes":"off",
 //////////////////
 // Module
 
-var Facemirror = require('./facemirror.js');
+var Facemirror = require('./facemirror_v1.js');
 var fm = new Facemirror({"client_id":client_id,"env":"node"});
 fm.foo();
 
