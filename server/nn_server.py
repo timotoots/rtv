@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument("--db")
     parser.add_argument("--nn_algorithm", choices=['auto', 'ball_tree', 'kd_tree', 'brute'], default='auto')
     parser.add_argument("--radius_same", type=float, default=0.5)
-    parser.add_argument("--radius_extend", type=float, default=0.3)
+    parser.add_argument("--radius_extend", type=float, default=0.25)
     parser.add_argument("--debug", action='store_true', default=False)
     parser.add_argument("--profile")
     args = parser.parse_args()
