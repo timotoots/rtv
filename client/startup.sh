@@ -10,7 +10,7 @@
      # su pi -c "node /opt/rtv/client/visual/draw.js" &
      python3 /opt/rtv/client/main.py &
 
-if [ "$HOSTNAME" = "rtv2" ]; then
+if [ "$HOSTNAME" = "rtv2b" ]; then
     cd /opt/rtv/client/sweep/ && python3 /opt/rtv/client/sweep/sweep_xz.py &
 fi
 
