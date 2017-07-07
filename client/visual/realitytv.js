@@ -194,7 +194,7 @@ client.on('message', (topic, message) => {
         // add average to lidar_slots
         Object.keys(z_points).forEach(function(key) {
             lidar_slots[key].z_average = arr.median(z_points[key]);
-            console.log("lidar point x=" + key + " z=" + lidar_slots[key].z_average );
+            // console.log("lidar point x=" + key + " z=" + lidar_slots[key].z_average );
         });
 
 
