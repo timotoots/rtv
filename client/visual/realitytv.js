@@ -274,13 +274,12 @@ function boot(){
 
       // onload
     draw_crosshairs();
-    init_stripes();
     main_loop();
     // init_lidar_slots();
     // lidar_loop();
     // stripes_loop();
     // draw_calibrate_img();
-
+    init_stripes2();
     // stripes_showhide("on","L");
 
 }
@@ -509,6 +508,27 @@ function sweep_get_z(x){
 
 // STRIPES ANIMATION
 
+
+function init_stripes2(){
+
+    var coords_x = fm.mm2px_x(0);
+
+    var cover_box_width = fm.mm2px_x(4000) - fm.mm2px_x(0);
+
+    stripes1 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(0).src("triibustik1000.png");
+    stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
+    stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
+
+    stripes = gfx.createGroup().x(0).y(0).w(200).h(1080).clipRect(true);;
+
+    stripes.add(stripes1);
+    stripes.add(stripes2);
+    stripes.add(stripes3);
+    
+    root_group.add(stripes);
+
+}
+
 function init_stripes(){
 
     var coords_x = fm.mm2px_x(0);
@@ -597,8 +617,10 @@ function stripes_showhide(onoff, side){
             }
 
             anim_status["stripes"] = 1;
+         
+            stripes.x.anim().from(current_pos).to(to_pos).dur(2000).start();
 
-            stripes_coverbox.x.anim().from(current_pos).to(to_pos).dur(2000).start();
+            // stripes_coverbox.x.anim().from(current_pos).to(to_pos).dur(2000).start();
             // stripes_coverbox.opacity.anim().from(1).to(0).delay(2000).dur(1).start();
 
 
