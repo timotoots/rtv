@@ -143,7 +143,7 @@ client.on('message', (topic, message) => {
                 if(map[i][0]<2000){
                     sideL++;
                 } else {
-                    sideL++;
+                    sideR++;
                 }
                 if (sideL > 4 || sideR > 4){
 
