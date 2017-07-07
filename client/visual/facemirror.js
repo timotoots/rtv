@@ -13,20 +13,20 @@
     var mm_calibs = {"rtv1":{},"rtv2":{},"rtv3":{}};
 
     // in mm from mirror top
-    mm_calibs["rtv1"]["mm_calib_x1"] = 205;
-    mm_calibs["rtv1"]["mm_calib_x2"] = 1320;
-    mm_calibs["rtv1"]["mm_calib_y1"] = 210;
-    mm_calibs["rtv1"]["mm_calib_y2"] = 803;
+    mm_calibs["rtv1"]["mm_calib_x1"] = 200;
+    mm_calibs["rtv1"]["mm_calib_x2"] = 1318;
+    mm_calibs["rtv1"]["mm_calib_y1"] = 207;
+    mm_calibs["rtv1"]["mm_calib_y2"] = 801; 
 
-    mm_calibs["rtv2"]["mm_calib_x1"] = 1447;
-    mm_calibs["rtv2"]["mm_calib_x2"] = 2563;
-    mm_calibs["rtv2"]["mm_calib_y1"] = 210;
+    mm_calibs["rtv2"]["mm_calib_x1"] = 1446;
+    mm_calibs["rtv2"]["mm_calib_x2"] = 2560;
+    mm_calibs["rtv2"]["mm_calib_y1"] = 209;
     mm_calibs["rtv2"]["mm_calib_y2"] = 803;
 
-    mm_calibs["rtv3"]["mm_calib_x1"] = 2691;
-    mm_calibs["rtv3"]["mm_calib_x2"] = 3807;
-    mm_calibs["rtv3"]["mm_calib_y1"] = 210;
-    mm_calibs["rtv3"]["mm_calib_y2"] = 803;
+    mm_calibs["rtv3"]["mm_calib_x1"] = 2688;
+    mm_calibs["rtv3"]["mm_calib_x2"] = 3803;
+    mm_calibs["rtv3"]["mm_calib_y1"] = 208;
+    mm_calibs["rtv3"]["mm_calib_y2"] = 801;
 
     var mm_screen_offset_from_mirror_x, mm_screen_offset_from_mirror_y, px_per_mm_x, px_per_mm_y;
 

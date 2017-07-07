@@ -13,7 +13,7 @@ def on_publish(client,userdata,result):
     pass
 
 # Establish MQTT connection
-client1 = paho.Client("rtv2")
+client1 = paho.Client("rtv2_sweep")
 client1.on_publish = on_publish
 client1.connect(broker, port)
 

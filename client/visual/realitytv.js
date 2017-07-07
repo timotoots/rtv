@@ -33,7 +33,7 @@ var persons_side = "L";
 
 var reality = {"lidar_persons":0,"stripes_fading":0};
 
-var params = {"square_color":"#FFFFFF","lidar_color":"#FF0000", "stripes":"off", "draw_dotface":"on","draw_lidar":"off","draw_text":"on","draw_animated_square":"off","draw_square_realtime":"off","draw_square":"on" };
+var params = {"square_color":"#FFFFFF","lidar_color":"#FF0000", "stripes":"off", "draw_dotface":"off","draw_lidar":"off","draw_text":"off","draw_animated_square":"off","draw_square_realtime":"off","draw_square":"off" };
 
 //////////////////
 // Module
@@ -189,6 +189,10 @@ client.on('message', (topic, message) => {
 
           faceframe["center_point_nose"] = [ faceframe["nose_global_mm"][0],faceframe["nose_global_mm"][1] ];
 
+          if(faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] < 50 && faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] > 30){
+
+
+
           var all_x = [];
           var all_y = [];
 
@@ -233,7 +237,7 @@ client.on('message', (topic, message) => {
 
         // Real time drawings
         // draw_img(faceframe);
-        // draw_realtime_square(faceframe);
+        draw_realtime_square(faceframe);
         // draw_facepoly(faceframe);
 
 
@@ -247,7 +251,7 @@ client.on('message', (topic, message) => {
 	
 		// }
 
-		draw_square(faceframe);
+		// draw_square(faceframe);
 
 		// if(params["draw_square_realtime"]=="on"){
 		// 	draw_square(faceframe);
@@ -262,6 +266,8 @@ client.on('message', (topic, message) => {
 			draw_dotface(faceframe);
 		}
 
+
+        draw_reddot(faceframe);
 
 		/*
 
@@ -278,7 +284,12 @@ client.on('message', (topic, message) => {
         }
         */
 
+       } else {
+        console.log("noface" + faceframe.face_id);
+        console.log(faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0]);
 
+
+       }
 
 
     } 
@@ -895,7 +906,42 @@ function draw_dotface(faceframe){
 
 }
 
+function draw_reddot(faceframe){
 
+
+    // initialize dotface
+
+    if(typeof faces[faceframe.id]["el"]["dotface"] === "undefined"){
+
+        faces[faceframe.id]["el"]["dotface"] = [];
+
+     
+            var box_width = 5; // in px
+
+            var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+            var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+
+            faces[faceframe.id]["el"]["dotface"][100] = gfx.createRect().x(coords_x-box_width/2).y(coords_y).w(box_width).h(box_width).fill('#FF0000').opacity(1.0);
+            root_group.add(faces[faceframe.id]["el"]["dotface"][100]);
+
+        console.log("NEW dotface / FACE_ID:" + faceframe.id);
+
+    }
+
+
+        // colordots
+        var coords_x = fm.mm2px_x(faceframe.supermiddle[0]);
+        var coords_y = fm.mm2px_y(faceframe.supermiddle[1]);
+        faces[faceframe.id]["el"]["dotface"][100].x(coords_x);
+        faces[faceframe.id]["el"]["dotface"][100].y(coords_y);
+
+
+
+
+    console.log("MOVE dotface / FACE_ID:" + faceframe.id + " x:" + coords_x + ",y:" + coords_y);
+
+
+}
 //////////////////////////////////////////
 
 function draw_square(faceframe){
@@ -907,14 +953,19 @@ function draw_square(faceframe){
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
 
         faces[faceframe.id]["el"]["square"] = gfx.createRect().x(0).y(0).w(0).h(0).opacity(1);
+        faces[faceframe.id]["el"]["square2"] = gfx.createRect().x(0).y(0).w(0).h(0).opacity(1);
+
         root_group.add(faces[faceframe.id]["el"]["square"]);
+                root_group.add(faces[faceframe.id]["el"]["square2"]);
+
         console.log("NEW square / FACE_ID:" + faceframe.id);
         // faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
 
-    } 
-
+    }  
+ 
 
     faces[faceframe.id]["el"]["square"].fill(params["square_color"]);
+    faces[faceframe.id]["el"]["square2"].fill("#000000");
 
     // var coords_x_rect = fm.mm2px_x(faceframe.supermiddle[0]) - square_side_px/2;
     // var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
@@ -934,6 +985,9 @@ function draw_square(faceframe){
         faces[faceframe.id]["el"]["square"].x(coords_x_rect-square_side_px/2);
         faces[faceframe.id]["el"]["square"].y(coords_y_rect-square_side_px/2);
 
+        faces[faceframe.id]["el"]["square2"].x(coords_x_rect-square_side_px/2+10);
+        faces[faceframe.id]["el"]["square2"].y(coords_y_rect-square_side_px/2+10);
+
         // faces[faceframe.id]["el"]["square"].opacity.anim().from(0).to(1).delay(10).dur(400).start();
     
 
@@ -941,6 +995,12 @@ function draw_square(faceframe){
         faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect).to(coords_y_rect-square_side_px/2).dur(1000).start();
         faces[faceframe.id]["el"]["square"].w.anim().from(0).to(square_side_px).dur(1000).start();
         faces[faceframe.id]["el"]["square"].h.anim().from(0).to(square_side_px).dur(1000).start();
+
+        faces[faceframe.id]["el"]["square2"].x.anim().from(coords_x_rect).to(coords_x_rect-square_side_px/2+10).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].y.anim().from(coords_y_rect).to(coords_y_rect-square_side_px/2+10).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].w.anim().from(0).to(square_side_px-20).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].h.anim().from(0).to(square_side_px-20).dur(1000).start();
+
 
         setTimeout(function(faceframe){
                     faces[faceframe.id]["movement"]["square_status"] = "visible";
@@ -959,6 +1019,11 @@ function draw_square(faceframe){
         faces[faceframe.id]["el"]["square"].y.anim().from(coords_y_rect-square_side_px/2).to(coords_y_rect).delay(600).dur(1000).start();
         faces[faceframe.id]["el"]["square"].w.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
         faces[faceframe.id]["el"]["square"].h.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+    
+        faces[faceframe.id]["el"]["square2"].x.anim().from(coords_x_rect-square_side_px/2).to(coords_x_rect+10).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].y.anim().from(coords_y_rect-square_side_px/2).to(coords_y_rect+10).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].w.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
+        faces[faceframe.id]["el"]["square2"].h.anim().from(square_side_px).to(0).delay(600).dur(1000).start();
 
         // faces[faceframe.id]["el"]["square"].opacity.anim().from(1).to(0).dur(400).start();
     
@@ -976,59 +1041,23 @@ function draw_square(faceframe){
 
 function draw_realtime_square(faceframe){
 
-    var map = faceframe.landmarks_global_mm;
 
-    var max_x = 0;
-    var max_y = 0;
+    var square_side_px = 200;
 
-    var min_x = 5000;
-    var min_y = 5000;
-
-    for (var i = 0; i < map.length; i++) {
-
-        // map[i][1] = map[i][1] - 40;
-
-        if(fm.mm2px_x(map[i][0]) > max_x){ max_x = fm.mm2px_x(map[i][0]); }
-        if(fm.mm2px_y(map[i][1]) > max_y){ max_y = fm.mm2px_y(map[i][1]); }
-
-        if(fm.mm2px_x(map[i][0]) < min_x){ min_x = fm.mm2px_x(map[i][0]); }
-        if(fm.mm2px_y(map[i][1]) < min_y){ min_y = fm.mm2px_y(map[i][1]); }
-   }
-
-
-   var width = Math.abs(max_x - min_x);
-   var height = Math.abs(max_y - min_y);
-   // console.log(width + " " + height);
-
-   if(width > 600 || height > 600 || width < 30 || height < 30){
-    var square_side = 200;
-   } else if(width > height){
-    var square_side = width;
-   } else {
-    var square_side = height;
-   }
-
-
-    var thirdeye_y = fm.mm2px_y(map[27][1]);
-    var face_bottom_y = fm.mm2px_y(map[8][1]);
-
-    var square_side_px = (face_bottom_y - thirdeye_y)*2;
-
-
-    var coords_x_rect = fm.mm2px_x(map[27][0]) - square_side_px/2;
-    var coords_y_rect = fm.mm2px_y(map[27][1]) - square_side_px/2;
-
-    console.log(square_side_px + " square side");
+    var coords_x_rect = fm.mm2px_x(faceframe.supermiddle[0]) - square_side_px/2;
+    var coords_y_rect = fm.mm2px_y(faceframe.supermiddle[1]-20) - square_side_px/2;
 
    
     if(typeof faces[faceframe.id]["el"]["square"] === "undefined"){
 
-        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(coords_x_rect).y(coords_y_rect).w(10).h(10).fill("#000000").opacity(1.0);
+        faces[faceframe.id]["el"]["square"] = gfx.createRect().x(coords_x_rect).y(coords_y_rect).w(square_side_px).h(square_side_px).fill("#FFFFFF").opacity(1.0);
+        faces[faceframe.id]["el"]["square2"] = gfx.createRect().x(coords_x_rect+10).y(coords_y_rect+10).w(square_side_px-20).h(square_side_px-20).fill("#000000").opacity(1.0);
         root_group.add(faces[faceframe.id]["el"]["square"]);
+        root_group.add(faces[faceframe.id]["el"]["square2"]);
         console.log("NEW square / FACE_ID:" + faceframe.id);
 
-        faces[faceframe.id]["el"]["square"].w.anim().from(10).to(square_side_px).dur(1000).start();
-        faces[faceframe.id]["el"]["square"].h.anim().from(10).to(square_side_px).dur(1000).delay(1000).start();
+        // faces[faceframe.id]["el"]["square"].w.anim().from(10).to(square_side_px).dur(1000).start();
+        // faces[faceframe.id]["el"]["square"].h.anim().from(10).to(square_side_px).dur(1000).delay(1000).start();
 
         faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
 
@@ -1036,7 +1065,10 @@ function draw_realtime_square(faceframe){
 
     faces[faceframe.id]["el"]["square"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(200).start();
     faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
-            
+ 
+     faces[faceframe.id]["el"]["square2"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]+10).to(coords_x_rect+10).dur(200).start();
+    faces[faceframe.id]["el"]["square2"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]+10).to(coords_y_rect+10).dur(200).start();
+           
     faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
     console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
 
