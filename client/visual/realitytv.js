@@ -287,7 +287,12 @@ function boot(){
 
 function on_new_faceframe(faceframe){
 
-    action_happened();
+    if(faceframe.supermiddle[0]<2000){
+        var side = "L";
+    } else {
+        var side = "R";
+    }
+    action_happened(side);
 
     draw_realtime_square(faceframe);
     //  draw_striped_square(faceframe);
@@ -325,12 +330,12 @@ function on_new_faceframe(faceframe){
 
 
 
-function action_happened(){
+function action_happened(side){
 
     var d = new Date();
     var action_now = d.getTime();
     if(action_now - last_action_time > 5000){
-        stripes_showhide("on","L");
+        stripes_showhide2(side);
         console.log("action!");
     }
     last_action_time = action_now;
@@ -519,7 +524,7 @@ function init_stripes2(){
     stripes2 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(1000).src("triibustik1000.png");
     stripes3 = gfx.createImageView().opacity(1.0).w(1920).h(1000).x(0).y(2000).src("triibustik1000.png");
 
-    stripes = gfx.createGroup().x(0).y(0).w(200).h(1080).clipRect(true);;
+    stripes = gfx.createGroup().x(-200).y(0).w(100).h(1080).clipRect(true);
 
     stripes.add(stripes1);
     stripes.add(stripes2);
@@ -596,7 +601,7 @@ function stripes_showhide(onoff, side){
 
 
     // if no animation is triggered
-    if (anim_status["stripes"]!=111){
+    if (anim_status["stripes"]!=1){
 
 
             if(side == "L"){
@@ -628,7 +633,7 @@ function stripes_showhide(onoff, side){
                 anim_status["stripes"] = 0;
                 if (onoff=="on"){
                     if (side=="L"){ side = "R"; } else { side = "L"; }
-                    stripes_showhide("off", side);
+                    // stripes_showhide("off", side);
                 }
             
             },2200, onoff);
@@ -655,6 +660,35 @@ function stripes_showhide(onoff, side){
 
 }
 
+
+function stripes_showhide2(side){
+
+
+    // if no animation is triggered
+    if (anim_status["stripes"]!=1){
+
+
+            if(side == "L"){
+                var pos1 = fm.mm2px_x(-200);
+                var pos2 = fm.mm2px_x(4000);
+            } else {
+                var pos1 = fm.mm2px_x(4000);
+                var pos2 = fm.mm2px_x(-200);
+            }
+
+            anim_status["stripes"] = 1;
+         
+            stripes.x.anim().from(pos1).to(pos2).dur(2000).start();
+
+    
+            setTimeout(function(){
+                anim_status["stripes"] = 0;            
+            },2200);
+
+    } // if anim_status["stripes"]==0)
+
+
+}
 
 ///////////////////////////////////
 
