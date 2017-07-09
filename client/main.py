@@ -130,7 +130,6 @@ def on_disconnect(client, userdata, rc):
         print ("Unexpected MQTT disconnection. Will auto-reconnect")
 
 
-subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
 
 
 client1 = paho.Client(client_id + "_control", 0)                           #create client object
@@ -141,7 +140,13 @@ time.sleep(1)
 
 client1.connect(broker,port)      
 client1.subscribe("rtv_all/control")
+
+if client_id=="rtv1_main" or client_id=="rtv2_main" or client_id=="rtv3_main":
+    subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
+
+
                            #establish connection
 client1.loop_forever()    #start the loop
 # client1.publish("house/bulbs/bulb1","OFF")
+
 
