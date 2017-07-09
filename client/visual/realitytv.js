@@ -51,6 +51,8 @@ var params = {
 var time_started = new Date();
 var last_action_time = time_started.getTime();
 
+var ping_last_time = time_started.getTime();
+
 //////////////////
 // Facemirror Module
 
@@ -315,6 +317,8 @@ function boot(){
 
 function on_new_faceframe(faceframe){
 
+    client.publish(client_id + '_log/faceframe', faceframe.face_id);
+
     if(faceframe.supermiddle[0]<2000){
         var side = "L";
     } else {
@@ -360,6 +364,7 @@ function on_new_faceframe(faceframe){
 
 function action_happened(side){
 
+
     var d = new Date();
     var action_now = d.getTime();
     if(action_now - last_action_time > 5000){
@@ -383,12 +388,20 @@ function check_sleep(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+
 function main_loop(){
 
     // check to be forgotten faces
 
     var d = new Date();
     d = d.getTime();
+
+    if(d - ping_last_time > 1000){
+
+        ping_last_time = d;   
+        client.publish(client_id + '_log/ping', "1");
+
+    }
 
     for (var i = 0; i < faces.length; i++) {
 
