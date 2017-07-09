@@ -119,6 +119,7 @@ def on_connect(client, userdata, flags, rc):
     +str(rc)+"client1_id  "+str(client)
     print(m)
     client1.publish(client_id + "/control_log/status","main.py started")
+    client1.publish(client_id + "/control_log/status","draw started")
 
 
 
@@ -130,7 +131,6 @@ def on_disconnect(client, userdata, rc):
 
 
 subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
-client1.publish(client_id + "/control_log/"+msg,"draw started")
 
 
 client1 = paho.Client(client_id + "_control", 0)                           #create client object
