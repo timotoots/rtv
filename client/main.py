@@ -112,7 +112,7 @@ def on_publish(client,userdata,result):             #create function for callbac
     print("data published \n")
     pass
 
-
+ 
 
 def on_connect(client, userdata, flags, rc):
     m="Connected flags"+str(flags)+"result code "\
@@ -120,11 +120,17 @@ def on_connect(client, userdata, flags, rc):
     print(m)
     client1.publish(client_id + "/control_log/status","main.py started")
 
+
+
  
 
 def on_disconnect(client, userdata, rc):
     if rc != 0:
         print ("Unexpected MQTT disconnection. Will auto-reconnect")
+
+
+subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
+client1.publish(client_id + "/control_log/"+msg,"draw started")
 
 
 client1 = paho.Client(client_id + "_control", 0)                           #create client object
