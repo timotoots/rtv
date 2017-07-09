@@ -4,6 +4,9 @@ import math
 import paho.mqtt.client as paho
 from sweeppy import Sweep
 
+from usb.core import find as finddev
+
+
 broker="192.168.22.20"
 port=1883
 
@@ -17,9 +20,17 @@ client1 = paho.Client("rtv2_sweep")
 client1.on_publish = on_publish
 client1.connect(broker, port)
 
+reset_counter = 0
 
 with Sweep('/dev/ttyUSB0') as sweep:
     
+    if reset_counter>100:
+       dev = finddev(idVendor=0x0403, idProduct=0x6015)
+       dev.reset()
+       reset_counter = 0
+   
+    reset_counter = reset_counter + 1
+
     # Set motor speed, 0:10 Hz
     sweep.set_motor_speed(10)
     # Set sample rate, 500, 750 or 1000 Hz
