@@ -32,6 +32,14 @@ sudo nano /etc/default/keyboard
 	change line: 
 	XKBLAYOUT="ee"
 
+# Update apt
+
+sudo apt-get update
+
+sudo apt-get upgrade
+
+sudo apt-get install screen
+
 # Install RTV Git repository
 
 	sudo apt-get install git python-flask python3 python3-pip
@@ -45,14 +53,8 @@ sudo nano /etc/default/keyboard
 sudo nano /etc/rc.local
 
 	add line:
-	/opt/rtv/client/startup.sh &
+	screen -dm -S rtvserver /opt/rtv/client/startup.sh
 
-
-# Update apt
-
-sudo apt-get update
-
-sudo apt-get upgrade
 
 # Prevent SD Card corrupt 
 
@@ -79,9 +81,11 @@ https://github.com/joshmarinacci/aminogfx-gl
 
 	sudo apt-get install libjpeg-dev libavformat-dev libswscale-dev libavcodec-dev
 
-	cd /opt/rtv/client
-	sudo npm install aminogfx-gl
-	node /opt/rtv/client/test.js
+	cd /opt/rtv/client/visual
+	npm install aminogfx-gl
+	npm install mqtt
+	mv node_modules/aminogfx-gl .
+	node /opt/rtv/client/visual/aminogfx-gl/demos/size.js
 
 
 # Install Paho MQTT module for Python3

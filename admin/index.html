@@ -35,7 +35,17 @@
     	}
 
 
-    	
+    	.status{
+            width: 20px; height: 20px; display: inline-block;;
+        }
+
+        .status_ok{
+            background: green;
+        }
+
+        .status_err{
+            background: red;
+        }
 
     </style>
     <script type="text/javascript">
@@ -53,6 +63,7 @@
 
         // Parameters
         var hostname = "192.168.22.20";
+        // var hostname = "10.0.0.40";
         var port = 1884;
 
         var client_id_mqtt = "clientId"+Math.random();
@@ -76,6 +87,7 @@
             // Once a connection has been made, make a subscription and send a message.
             console.log("onConnect");
             client.subscribe("#");
+            check_times();
         }
 
         // called when the client loses its connection
@@ -97,12 +109,19 @@
             console.log("SEND: " + topic + " : " +send)
         }
 
+        var d = new Date();
+        var message_archive = {};
 
-
-
+        message_archive["sweep_xz"] = d.getTime();
+        message_archive["rtv1_ping"] = d.getTime();
+        message_archive["rtv2_ping"] = d.getTime();
+        message_archive["rtv3_ping"] = d.getTime();
 
         // called when a message arrives
         function onMessageArrived(message) {
+
+            var d = new Date();
+
             
         	var topic = message.destinationName;
 			var topics = topic.split("/");
@@ -110,9 +129,9 @@
 			var msg =  message.payloadString.toString();
             var el_type = topics[1];
 
-             $("#rtv_all_control").append("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
+             // $("#rtv_all_control").append("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
 
-            console.log("Message arrived: topic=" + topics + ", message=" + msg);
+            // console.log("Message arrived: topic=" + topics + ", message=" + msg);
 
 
                if(topics[1] === 'control_log') {
@@ -128,20 +147,81 @@
             			
                		$("#rtv_all_control").append("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
 
-               }
+               } else if(topic === 'sweep/scan_xz') {
 
+                  message_archive["sweep_xz"] = d.getTime();
+
+              } else if(topic === 'rtv1_log/ping') {
+
+                  message_archive["rtv1_ping"] = d.getTime();
+              } else if(topic === 'rtv2_log/ping') {
+
+                  message_archive["rtv2_ping"] = d.getTime();
+              } else if(topic === 'rtv3_log/ping') {
+
+                  message_archive["rtv3_ping"] = d.getTime();
+              }
 
         } // function onMessageArrived
 
 
 
+        function check_times(){
+            
+            var d = new Date();
+
+            if (d.getTime() - message_archive["sweep_xz"] > 1000){
+                $("#status_sweep").removeClass("status_ok").addClass("status_err");
+            } else {
+                $("#status_sweep").removeClass("status_err").addClass("status_ok");
+            }
+
+            if (d.getTime() - message_archive["rtv1_ping"] > 2000){
+                $("#status_rtv1").removeClass("status_ok").addClass("status_err");
+            } else {
+                $("#status_rtv1").removeClass("status_err").addClass("status_ok");
+            }
+
+            if (d.getTime() - message_archive["rtv2_ping"] > 2000){
+                $("#status_rtv2").removeClass("status_ok").addClass("status_err");
+            } else {
+                $("#status_rtv2").removeClass("status_err").addClass("status_ok");
+            }
+
+                        
+            if (d.getTime() - message_archive["rtv3_ping"] > 2000){
+                $("#status_rtv3").removeClass("status_ok").addClass("status_err");
+            } else {
+                $("#status_rtv3").removeClass("status_err").addClass("status_ok");
+            }
+
+
+            setTimeout(function(){ check_times(); }, 20);
+
+        } //  function check_times()
+    
+
+       
 
     </script>
 </head>
 
-<body>
+<body >
 <div id="buttons"> 
+CLIENT STATUS / 
+Sweep:
+<div id="status_sweep" class="status_err status"></div>
+RTV1:
+<div id="status_rtv1" class="status_err status"></div>
+RTV2:
+<div id="status_rtv2" class="status_err status"></div>
+RTV3:
+<div id="status_rtv3" class="status_err status"></div>
 
+SERVER STATUS /
+
+
+<br/>
 	<button onclick="send('rtv_all/control', 'uptime')">Uptime</button>
     <button onclick="send('rtv_all/control', 'rpi_info')">Rpi Info</button>
     <button onclick="send('rtv_all/control', 'top')">Top</button>
