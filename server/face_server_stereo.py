@@ -97,7 +97,7 @@ def capture(last_frame, done, video_source, video_camera, video_url, args):
             '''
             continue
         # for monitoring
-        ret = mqtt.publish("server_log/%s_%s/ping" % (args.mqtt_name, process_name), '1')
+        ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
         # preprocess frame
         img = cv2.resize(img, (args.frame_width, args.frame_height))
         #img = cv2.flip(img, 1)
@@ -190,7 +190,7 @@ def processing(left_frame, right_frame, done, args):
             assert False
 
         # for monitoring
-        ret = mqtt.publish("server_log/%s_%s/ping" % (args.mqtt_name, process_name), '1')
+        ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
 
         left_rects = []
         left_landmarkss = []
