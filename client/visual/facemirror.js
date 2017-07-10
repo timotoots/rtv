@@ -83,6 +83,48 @@
 
         };
 
+
+        Facemirror.prototype.process_faceframe = function process_faceframe(faceframe) {
+
+
+            if(faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] > 50 || faceframe["landmarks_global_mm"][45][0] - faceframe["landmarks_global_mm"][36][0] < 30){
+                // console.log("weird face ID:" + faceframe.face_id);
+                return false;
+            }
+        
+            
+            faceframe["center_point_nose"] = [ faceframe["nose_global_mm"][0],faceframe["nose_global_mm"][1] ];
+
+            var all_x = [];
+            var all_y = [];
+
+            for (var i = 0; i < faceframe["landmarks_global_mm"].length; i++) {
+                all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+                all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+                }
+
+            faceframe["center_point_all_median"] = [ arr.median(all_x), arr.median(all_y) ];
+            faceframe["center_point_all_average"] = [ arr.mean(all_x), arr.mean(all_y) ];
+
+            for (var i = 36; i <= 47; i++) {
+                all_x.unshift(faceframe["landmarks_global_mm"][i][0]);
+                all_y.unshift(faceframe["landmarks_global_mm"][i][1]);
+            }
+
+            faceframe["center_point_eyes_median"] = [ arr.median(all_x), arr.median(all_y) ];
+
+            faceframe["center_point_mideyes"] = [ faceframe["landmarks_global_mm"][27][0],faceframe["landmarks_global_mm"][27][1] ];
+
+            faceframe["supermiddle"] = [];
+            faceframe["supermiddle"][0] = (faceframe["center_point_eyes_median"][0] + faceframe["center_point_mideyes"][0] +  faceframe["center_point_all_median"][0] +  faceframe["center_point_all_median"][0])/4;
+            faceframe["supermiddle"][1] = (faceframe["center_point_eyes_median"][1] + faceframe["center_point_mideyes"][1] +  faceframe["center_point_all_median"][1] +  faceframe["center_point_all_median"][1])/4;
+
+            var d = new Date();
+            faceframe["time"] = d.getTime();
+
+            return faceframe;
+
+        };
         
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -174,7 +216,7 @@ return faces;
       if (found == 0){
           // new internal id, not the same as face_id
           faceframe.id = faces.length;
-          faces[faceframe.id] = { "history":[], "el":{}, "crosshairs":{ "status":"grid"} };
+          faces[faceframe.id] = { "history":[], "el":{}, "crosshairs":{ "status":"grid"}, "status":"active" };
           console.log("NEW FACE id: " + faceframe.id);  
           // crosshairs_to_face(faceframe);
        
@@ -196,6 +238,94 @@ return faces;
 
 
       ///////////////////////////////////////////////////////////////////////////////
+
+
+// Helper functions
+
+var arr = {   
+    max: function(array) {
+        return Math.max.apply(null, array);
+    },
+    
+    min: function(array) {
+        return Math.min.apply(null, array);
+    },
+    
+    range: function(array) {
+        return arr.max(array) - arr.min(array);
+    },
+    
+    midrange: function(array) {
+        return arr.range(array) / 2;
+    },
+
+    sum: function(array) {
+        var num = 0;
+        for (var i = 0, l = array.length; i < l; i++) num += array[i];
+        return num;
+    },
+    
+    mean: function(array) {
+        return arr.sum(array) / array.length;
+    },
+    
+    median: function(array) {
+        array.sort(function(a, b) {
+            return a - b;
+        });
+        var mid = array.length / 2;
+        return mid % 1 ? array[mid - 0.5] : (array[mid - 1] + array[mid]) / 2;
+    },
+    
+    modes: function(array) {
+        if (!array.length) return [];
+        var modeMap = {},
+            maxCount = 0,
+            modes = [];
+
+        array.forEach(function(val) {
+            if (!modeMap[val]) modeMap[val] = 1;
+            else modeMap[val]++;
+
+            if (modeMap[val] > maxCount) {
+                modes = [val];
+                maxCount = modeMap[val];
+            }
+            else if (modeMap[val] === maxCount) {
+                modes.push(val);
+                maxCount = modeMap[val];
+            }
+        });
+        return modes;
+    },
+    
+    variance: function(array) {
+        var mean = arr.mean(array);
+        return arr.mean(array.map(function(num) {
+            return Math.pow(num - mean, 2);
+        }));
+    },
+    
+    standardDeviation: function(array) {
+        return Math.sqrt(arr.variance(array));
+    },
+    
+    meanAbsoluteDeviation: function(array) {
+        var mean = arr.mean(array);
+        return arr.mean(array.map(function(num) {
+            return Math.abs(num - mean);
+        }));
+    },
+    
+    zScores: function(array) {
+        var mean = arr.mean(array);
+        var standardDeviation = arr.standardDeviation(array);
+        return array.map(function(num) {
+            return (num - mean) / standardDeviation;
+        });
+    }
+};
+
 
 
 
