@@ -317,7 +317,7 @@ function boot(){
 
 function on_new_faceframe(faceframe){
 
-    client.publish(client_id + '_log/faceframe', faceframe.face_id);
+    client.publish(client_id + '_log/faceframe', "incoming frame");
 
     if(faceframe.supermiddle[0]<2000){
         var side = "L";
