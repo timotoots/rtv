@@ -13,6 +13,7 @@ Install Ubuntu 14.04
 	sudo apt-get install mosquitto git 
 
 TODO: install CUDA and cuDNN for dlib
+TODO: recompile OpenCV (with CUDA support)
 
 Python dependencies
 
@@ -24,6 +25,8 @@ Python dependencies
 	sudo pip install dlib --install-option="--yes" --install-option="USE_AVX_INSTRUCTIONS"
 	# Paho MQTT
 	sudo pip install paho-mqtt
+	# OpenCV GPU face detection
+	sudo pip install git+https://github.com/tambetm/opencv-gpu-py.git
 
 Server app
 
