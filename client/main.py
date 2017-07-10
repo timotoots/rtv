@@ -119,7 +119,6 @@ def on_connect(client, userdata, flags, rc):
     +str(rc)+"client1_id  "+str(client)
     print(m)
     client1.publish(client_id + "/control_log/status","main.py started")
-    client1.publish(client_id + "/control_log/status","draw started")
 
 
 
@@ -130,7 +129,7 @@ def on_disconnect(client, userdata, rc):
         print ("Unexpected MQTT disconnection. Will auto-reconnect")
 
 
-
+  
 
 client1 = paho.Client(client_id + "_control", 0)                           #create client object
 client1.on_connect = on_connect        #attach function to callback
@@ -138,7 +137,19 @@ client1.on_message = on_message        #attach function to callback
 client1.on_disconnect = on_disconnect
 time.sleep(1)
 
-client1.connect(broker,port)      
+try:
+   client1.connect(broker,port)
+except:
+   time.sleep(60)
+   try:
+     client1.connect(broker,port)
+   except:
+     output = subprocess.Popen(["reboot"], stdout=subprocess.PIPE).communicate()[0]
+     output = output.decode("utf-8")
+     print (output)
+     client1.publish(client_id + "/control_log/"+msg,output)
+
+
 client1.subscribe("rtv_all/control")
 
 if client_id=="rtv1_main" or client_id=="rtv2_main" or client_id=="rtv3_main":
