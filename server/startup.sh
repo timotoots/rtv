@@ -6,6 +6,9 @@
      sleep 20s
 #done
 
+# reboot node js
+mosquitto_pub -h localhost -t "rtv_all/control" -m "app_reboot"
+
 # sleep till raspberrys are up?
 
 # start face servers
@@ -22,3 +25,5 @@ python nn_server.py &
 # start image server
 cd faces
 python -m SimpleHTTPServer 8000
+
+
