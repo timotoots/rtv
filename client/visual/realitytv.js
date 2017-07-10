@@ -364,6 +364,11 @@ function on_new_faceframe(faceframe){
 
 function action_happened(side){
 
+    if(side=="L"){
+        side = "R";
+    } else {
+        side = "L";
+    }
 
     var d = new Date();
     var action_now = d.getTime();
