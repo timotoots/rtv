@@ -81,13 +81,14 @@ def on_message(client1, userdata, message):
                 client1.publish(client_id + "/control_log/"+msg,output)
 
             if msg == "app_reboot":
+                if client_id=="rtv1_main" or client_id=="rtv2_main" or client_id=="rtv3_main":
 
-                output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
-                output = output.decode("utf-8")
-                print (output)
-                client1.publish(client_id + "/control_log/"+msg,output)
-                subprocess.Popen(["/opt/rtv/client/gfx.sh"], cwd=r'/opt/rtv/client/visual/',)
-                client1.publish(client_id + "/control_log/"+msg,"draw started")
+                  output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
+                  output = output.decode("utf-8")
+                  print (output)
+                  client1.publish(client_id + "/control_log/"+msg,output)
+                  subprocess.Popen(["/opt/rtv/client/gfx.sh"], cwd=r'/opt/rtv/client/visual/',)
+                  client1.publish(client_id + "/control_log/"+msg,"draw started")
 
             if msg == "app_kill":
 
