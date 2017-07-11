@@ -77,6 +77,8 @@ def capture(last_frame, done, video_source, video_camera, video_url, args):
     mqtt.connect(args.mqtt_host, args.mqtt_port)   # establish connection
     mqtt.loop_start()
 
+    ping_time = 0
+
     cap = cv2.VideoCapture()
     while not done.value:
         ret, img = cap.read()
@@ -97,7 +99,9 @@ def capture(last_frame, done, video_source, video_camera, video_url, args):
             '''
             continue
         # for monitoring
-        ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+        if time.time() - ping_time > args.ping_interval:
+            ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+            ping_time = time.time()
         # preprocess frame
         img = cv2.resize(img, (args.frame_width, args.frame_height))
         #img = cv2.flip(img, 1)
@@ -169,6 +173,7 @@ def processing(left_frame, right_frame, done, args):
 
     fps_start =	time.time()
     fps_frames = 0
+    ping_time = 0
 
     while True:
         # fetch left and right images.
@@ -190,7 +195,9 @@ def processing(left_frame, right_frame, done, args):
             assert False
 
         # for monitoring
-        ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+        if time.time() - ping_time > args.ping_interval:
+            ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+            ping_time = time.time()
 
         left_rects = []
         left_landmarkss = []
@@ -408,6 +415,7 @@ if __name__ == '__main__':
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
     parser.add_argument("--fps_frames", type=int, default=100)
+    parser.add_argument("--ping_interval", type=int, default=30*60) # 30 mins
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--left_video_url", default='http://rtv2b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
