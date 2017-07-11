@@ -210,7 +210,7 @@ function action_happened(side){
     var action_now = d.getTime();
     if(action_now - last_action_time > 5000){
         stripes_showhide2(side);
-        console.log("action on the "+side);
+        console.log("ACTION on the "+side);
     }
     last_action_time = action_now;
 }
@@ -242,8 +242,7 @@ function main_loop(){
 
         if (d - faces[i]["history"][0]["time"] > 2000 && faces[i]["status"]=="active"){
 
-            faces[i]["status"] = "hide faceframe";
-            console.log(faces[i]["status"]);
+            faces[i]["status"] = "hidden";
             hide_square( faces[i]["history"][0]);
 
         }
@@ -268,7 +267,8 @@ function main_loop(){
 
 function init_stripes2(){
 
-    stripes = gfx.createImageView().opacity(1.0).w(200).h(1000).x(0).y(0).src("triibustik200.png");   
+    var pos1 = fm.mm2px_x(-200);
+    stripes = gfx.createImageView().opacity(1.0).w(200).h(1000).x(pos1).y(0).src("triibustik200.png");   
     root_group.add(stripes);
 
 }
@@ -325,7 +325,7 @@ function draw_realtime_square(faceframe){
         faces[faceframe.id]["el"]["square2"] = gfx.createRect().x(coords_x_rect+10).y(coords_y_rect+10).w(square_side_px-20).h(square_side_px-20).fill("#000000").opacity(1.0);
         root_group.add(faces[faceframe.id]["el"]["square"]);
         root_group.add(faces[faceframe.id]["el"]["square2"]);
-        console.log("NEW square / FACE_ID:" + faceframe.id);
+        console.log("FACE_ID:" + faceframe.id + " NEW");
 
         faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
 
@@ -345,7 +345,7 @@ function draw_realtime_square(faceframe){
     faces[faceframe.id]["el"]["square2"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]+10).to(coords_y_rect+10).dur(200).start();
            
     faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
-    console.log("MOVE square / FACE_ID:" + faceframe.id + " geometry:" + faces[faceframe.id]["square"]["previous_pos"] );
+    console.log("FACE_ID:" + faceframe.id + " MOVE to " + Math.round(faces[faceframe.id]["square"]["previous_pos"][0]) + "," + Math.round(faces[faceframe.id]["square"]["previous_pos"][1]) );
 
 
 }
@@ -353,6 +353,8 @@ function draw_realtime_square(faceframe){
 
 function hide_square(faceframe){
         
+    console.log("FACE_ID:" + faceframe.id + " HIDE");
+
     faces[faceframe.id]["status"] = "hidden";
     faces[faceframe.id]["movement"]["square_status"] = "hidden";
 
