@@ -325,7 +325,7 @@ function draw_realtime_square(faceframe){
         faces[faceframe.id]["el"]["square2"] = gfx.createRect().x(coords_x_rect+10).y(coords_y_rect+10).w(square_side_px-20).h(square_side_px-20).fill("#000000").opacity(1.0);
         root_group.add(faces[faceframe.id]["el"]["square"]);
         root_group.add(faces[faceframe.id]["el"]["square2"]);
-        console.log("FACE_ID:" + faceframe.id + " NEW");
+        console.log("FACE_ID:" + faceframe.id + " NEW SQUARE");
 
         faces[faceframe.id]["square"] = {"previous_pos":[coords_x_rect,coords_y_rect]};
 
@@ -338,11 +338,11 @@ function draw_realtime_square(faceframe){
     } 
 
 
-    faces[faceframe.id]["el"]["square"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(200).start();
-    faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(200).start();
+    faces[faceframe.id]["el"]["square"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]).to(coords_x_rect).dur(100).start();
+    faces[faceframe.id]["el"]["square"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]).to(coords_y_rect).dur(100).start();
  
-    faces[faceframe.id]["el"]["square2"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]+10).to(coords_x_rect+10).dur(200).start();
-    faces[faceframe.id]["el"]["square2"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]+10).to(coords_y_rect+10).dur(200).start();
+    faces[faceframe.id]["el"]["square2"].x.anim().from(faces[faceframe.id]["square"]["previous_pos"][0]+10).to(coords_x_rect+10).dur(100).start();
+    faces[faceframe.id]["el"]["square2"].y.anim().from(faces[faceframe.id]["square"]["previous_pos"][1]+10).to(coords_y_rect+10).dur(100).start();
            
     faces[faceframe.id]["square"]["previous_pos"] = [coords_x_rect,coords_y_rect];
     console.log("FACE_ID:" + faceframe.id + " MOVE to " + Math.round(faces[faceframe.id]["square"]["previous_pos"][0]) + "," + Math.round(faces[faceframe.id]["square"]["previous_pos"][1]) );
