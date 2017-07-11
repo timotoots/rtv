@@ -70,7 +70,14 @@ def capture_pprofile(last_frame, done, args):
     prof.callgrind(open("callgrind.out.%s_capture" % args.profile, 'w'))
 
 def capture(last_frame, done, video_source, video_camera, video_url, args):
-    print("Starting %s..." % multiprocessing.current_process().name)
+    process_name = multiprocessing.current_process().name
+    print("Starting %s..." % process_name)
+
+    mqtt = paho.Client(args.mqtt_name + '_' + process_name)     # create client object
+    mqtt.connect(args.mqtt_host, args.mqtt_port)   # establish connection
+    mqtt.loop_start()
+
+    ping_time = 0
 
     cap = cv2.VideoCapture()
     while not done.value:
@@ -91,12 +98,17 @@ def capture(last_frame, done, video_source, video_camera, video_url, args):
                 print "Video: %dx%d %dfps" % (video_width, video_height, video_fps)
             '''
             continue
+        # for monitoring
+        if time.time() - ping_time > args.ping_interval:
+            ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+            ping_time = time.time()
         # preprocess frame
         img = cv2.resize(img, (args.frame_width, args.frame_height))
         #img = cv2.flip(img, 1)
         last_frame.raw = img.tostring()
 
     cap.release()
+    mqtt.loop_stop()
 
 def processing_profile(last_frame, done, args):
     import cProfile
@@ -115,7 +127,8 @@ def processing_pprofile(last_frame, done, args):
     prof.callgrind(open("callgrind.out.%s_processing" % args.profile, 'w'))
 
 def processing(left_frame, right_frame, done, args):
-    print("Starting %s..." % multiprocessing.current_process().name)
+    process_name = multiprocessing.current_process().name
+    print("Starting %s..." % process_name)
 
     if args.face_detector == 'dlib':
         detector = dlib.get_frontal_face_detector()
@@ -160,6 +173,7 @@ def processing(left_frame, right_frame, done, args):
 
     fps_start =	time.time()
     fps_frames = 0
+    ping_time = 0
 
     while True:
         # fetch left and right images.
@@ -179,6 +193,11 @@ def processing(left_frame, right_frame, done, args):
             left_faces = cv2gpu.find_faces(left_gray)
         else:
             assert False
+
+        # for monitoring
+        if time.time() - ping_time > args.ping_interval:
+            ret = mqtt.publish("server_log/%s/%s/ping" % (args.mqtt_name, process_name), '1')
+            ping_time = time.time()
 
         left_rects = []
         left_landmarkss = []
@@ -219,7 +238,8 @@ def processing(left_frame, right_frame, done, args):
             except requests.exceptions.RequestException as e:
                 print(e)
                 # if any error occurs, set dummy face id
-                left_ids = 100000 + np.array(range(len(left_descriptors)))
+                #left_ids = 100000 + np.array(range(len(left_descriptors)))
+                continue
         else:
             left_ids = []
         #print("left_ids:", left_ids)
@@ -276,7 +296,8 @@ def processing(left_frame, right_frame, done, args):
             except requests.exceptions.RequestException as e:
                 print(e)
                 # if any error occurs, set dummy face id
-                right_ids = 100000 + np.array(range(len(right_descriptors)))
+                #right_ids = 100000 + np.array(range(len(right_descriptors)))
+                continue
         else:
             right_ids = []
         #print("right_ids:", right_ids)
@@ -396,6 +417,7 @@ if __name__ == '__main__':
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
     parser.add_argument("--fps_frames", type=int, default=100)
+    parser.add_argument("--ping_interval", type=int, default=30) # 30 sec
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--left_video_url", default='http://rtv2b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')
