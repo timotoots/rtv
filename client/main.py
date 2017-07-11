@@ -81,14 +81,14 @@ def on_message(client1, userdata, message):
                 client1.publish(client_id + "/control_log/"+msg,output)
 
             if msg == "app_reboot":
+                if client_id=="rtv1_main" or client_id=="rtv2_main" or client_id=="rtv3_main":
 
-                output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
-                output = output.decode("utf-8")
-                print (output)
-                client1.publish(client_id + "/control_log/"+msg,output)
-
-                subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
-                client1.publish(client_id + "/control_log/"+msg,"draw started")
+                  output = subprocess.Popen(["killall","node"], stdout=subprocess.PIPE).communicate()[0]
+                  output = output.decode("utf-8")
+                  print (output)
+                  client1.publish(client_id + "/control_log/"+msg,output)
+                  subprocess.Popen(["/opt/rtv/client/gfx.sh"], cwd=r'/opt/rtv/client/visual/',)
+                  client1.publish(client_id + "/control_log/"+msg,"draw started")
 
             if msg == "app_kill":
 
@@ -138,7 +138,7 @@ client1.on_disconnect = on_disconnect
 time.sleep(1)
 
 try:
-   client1.connect(broker,port)
+   client1.connect(broker,port) 
 except:
    time.sleep(60)
    try:
@@ -153,8 +153,7 @@ except:
 client1.subscribe("rtv_all/control")
 
 if client_id=="rtv1_main" or client_id=="rtv2_main" or client_id=="rtv3_main":
-    subprocess.Popen(["node","/opt/rtv/client/visual/realitytv.js","&"], cwd=r'/opt/rtv/client/visual/',)
-
+    subprocess.Popen(["/opt/rtv/client/gfx.sh"], cwd=r'/opt/rtv/client/visual/',)
 
                            #establish connection
 client1.loop_forever()    #start the loop

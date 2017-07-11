@@ -1,0 +1,14 @@
+# don't display the copyright page
+startup_message off
+
+# increase scrollback buffer size
+defscrollback 10000
+
+# create windows
+chdir /opt/rtv/server
+screen -t rtv1 ./rtv1_stereo_calib.sh --no_display
+screen -t rtv2 ./rtv2_stereo_calib.sh --no_display
+screen -t rtv3 ./rtv3_stereo_calib.sh --no_display
+screen -t nn python nn_server.py
+chdir faces
+screen -t web python -m SimpleHTTPServer 8000

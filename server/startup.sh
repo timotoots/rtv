@@ -2,28 +2,10 @@
 
 # Startup script for RTV server
 
-#while true; do
-     sleep 20s
-#done
-
-# reboot node js
-mosquitto_pub -h localhost -t "rtv_all/control" -m "app_reboot"
+# wait for Mosquitto server
+sleep 20s
 
 # sleep till raspberrys are up?
 
 # start face servers
-cd /opt/rtv/server
-./rtv1_stereo_calib.sh --no_display &
-./rtv2_stereo_calib.sh --no_display &
-./rtv3_stereo_calib.sh --no_display &
-
-# nearest neighbor server
-# to clean up server delete database
-#rm -f nn_server.db
-python nn_server.py &
-
-# start image server
-cd faces
-python -m SimpleHTTPServer 8000
-
-
+/opt/rtv/server/start_screen.sh
