@@ -21,7 +21,7 @@
     	#buttons{
     		width: 100%
     		height: 40px;
-    		background: gray;
+    		background: #424242;
     		margin-bottom: 10px;
 
     	}
@@ -36,7 +36,7 @@
 
 
     	.status{
-            width: 20px; height: 20px; display: inline-block;;
+            width: 15px; height: 15px; display: inline-block;;
         }
 
         .status_ok{
@@ -117,6 +117,18 @@
         message_archive["rtv2_ping"] = d.getTime();
         message_archive["rtv3_ping"] = d.getTime();
 
+        message_archive["rtv1_camera_l"] = d.getTime();
+        message_archive["rtv1_camera_r"] = d.getTime();
+
+        message_archive["rtv2_camera_l"] = d.getTime();
+        message_archive["rtv2_camera_r"] = d.getTime();
+
+        message_archive["rtv3_camera_l"] = d.getTime();
+        message_archive["rtv3_camera_r"] = d.getTime();
+
+        message_archive["nn_server"] = d.getTime();
+
+
         // called when a message arrives
         function onMessageArrived(message) {
 
@@ -137,9 +149,16 @@
                if(topics[1] === 'control_log') {
 
                		var div_id = "#" + topics[0] + "_control_log";
-               		console.log(div_id);
 
                		$(div_id).prepend("<hr/>" + topics[0] + "<hr/><b>" + topic + "</b><br/><br/>" + msg);
+             
+                } else  if(topics[1] === 'debug') {
+
+                    var div_id = "#" + topics[0] + "_main_control_log";
+                    // console.log(div_id);
+
+                    $(div_id).prepend(msg+ "<br/><br/>");
+
              
 
 
@@ -160,10 +179,40 @@
               } else if(topic === 'rtv3_log/ping') {
 
                   message_archive["rtv3_ping"] = d.getTime();
+
+              } else if(topic === 'server_log/rtv1_server/capture_left/ping') {
+                  message_archive["rtv1_camera_l"] = d.getTime();
+
+              } else if(topic === 'server_log/rtv1_server/capture_right/ping') {
+                  message_archive["rtv1_camera_r"] = d.getTime();
+
+              } else if(topic === 'server_log/rtv2_server/capture_left/ping') {
+                  message_archive["rtv2_camera_l"] = d.getTime();
+              } else if(topic === 'server_log/rtv2_server/capture_right/ping') {
+                  message_archive["rtv2_camera_r"] = d.getTime();
+
+              } else if(topic === 'server_log/rtv3_server/capture_left/ping') {
+                  message_archive["rtv3_camera_l"] = d.getTime();
+              } else if(topic === 'server_log/rtv3_server/capture_right/ping') {
+                  message_archive["rtv3_camera_r"] = d.getTime();
+              } else if(topic === 'server_log/nn_server/ping') {
+                  message_archive["nn_server"] = d.getTime();
               }
 
         } // function onMessageArrived
 
+function showhide_id(id, time){
+
+    var d = new Date();
+
+    if (d.getTime() - message_archive[id] > time){
+        $("#status_" + id).removeClass("status_ok").addClass("status_err");
+    } else {
+        $("#status_"+ id).removeClass("status_err").addClass("status_ok");
+    }
+
+
+}
 
 
         function check_times(){
@@ -195,6 +244,15 @@
                 $("#status_rtv3").removeClass("status_err").addClass("status_ok");
             }
 
+            showhide_id("rtv1_camera_r",40000);
+            showhide_id("rtv1_camera_l",40000);
+
+            showhide_id("rtv2_camera_r",40000);
+            showhide_id("rtv2_camera_l",40000);
+
+            showhide_id("rtv3_camera_r",40000);
+            showhide_id("rtv3_camera_l",40000);
+            showhide_id("nn_server",40000);
 
             setTimeout(function(){ check_times(); }, 20);
 
@@ -207,18 +265,37 @@
 </head>
 
 <body >
+
 <div id="buttons"> 
-CLIENT STATUS / 
-Sweep:
-<div id="status_sweep" class="status_err status"></div>
+<b>REALITY-TV ADMIN</b><br/>
+
+ANIMATION :
 RTV1:
 <div id="status_rtv1" class="status_err status"></div>
-RTV2:
+/ RTV2:
 <div id="status_rtv2" class="status_err status"></div>
-RTV3:
+ / RTV3:
 <div id="status_rtv3" class="status_err status"></div>
+<br/>
+CAMERA :
 
-SERVER STATUS /
+RTV1:
+<div id="status_rtv1_camera_l" class="status_err status"></div>
+<div id="status_rtv1_camera_r" class="status_err status"></div>
+/
+RTV2:
+<div id="status_rtv2_camera_l" class="status_err status"></div>
+<div id="status_rtv2_camera_r" class="status_err status"></div>
+/
+RTV3:
+<div id="status_rtv3_camera_l" class="status_err status"></div>
+<div id="status_rtv3_camera_r" class="status_err status"></div>
+<br/>
+SWEEP:
+<div id="status_sweep" class="status_err status"></div>
+NN SERVER:
+
+<div id="status_nn_server" class="status_err status"></div>
 
 
 <br/>
@@ -230,7 +307,7 @@ SERVER STATUS /
     <button onclick="send('rtv_all/control', 'git_pull')">Pull</button>
     <button onclick="send('rtv_all/control', 'git_status')">Status</button>
     <button onclick="send('rtv_all/control', 'git_diff')">Diff</button>
-
+<br/>
     Raspberries: 
 	<button onclick="send('rtv_all/control', 'reboot')">Reboot</button>
     <button onclick="send('rtv_all/control', 'shutdown')">Shutdown</button>
@@ -238,7 +315,7 @@ SERVER STATUS /
     Graphics:
 	<button onclick="send('rtv_all/control', 'app_reboot')">Reload GFX</button>
 	<button onclick="send('rtv_all/control', 'app_kill')">Kill GFX</button>
-    <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate</button>
+    <!-- <button onclick="send('rtv_all/calibrate', 'calibrate')">Calibrate</button>
   <br/>
     Square:
     <button onclick="send('rtv_all/params/square_color', '#000000')">black</button>
@@ -261,7 +338,7 @@ SERVER STATUS /
 
    Dotface:
     <button onclick="send('rtv_all/params/draw_square', 'on')">on</button>
-    <button onclick="send('rtv_all/params/draw_square', 'off')">off</button>
+    <button onclick="send('rtv_all/params/draw_square', 'off')">off</button> -->
 
 
 
