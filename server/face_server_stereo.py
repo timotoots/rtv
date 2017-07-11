@@ -417,7 +417,7 @@ if __name__ == '__main__':
     parser.add_argument("--faces_dir", default="faces")
     parser.add_argument("--faces_url", default="http://192.168.22.20:8000/")
     parser.add_argument("--fps_frames", type=int, default=100)
-    parser.add_argument("--ping_interval", type=int, default=30*60) # 30 mins
+    parser.add_argument("--ping_interval", type=int, default=30) # 30 sec
     parser.add_argument("--face_nn_url", default='http://localhost:5000/')
     parser.add_argument("--left_video_source", choices=['camera', 'url'], default='url')
     parser.add_argument("--left_video_url", default='http://rtv2b.local:5000/?width=640&height=480&framerate=40&drc=high&hflip=&nopreview=')

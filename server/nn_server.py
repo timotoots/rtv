@@ -9,7 +9,7 @@ import time
 import logging
 
 # suppress Flask messages
-#logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 app = Flask(__name__)
 
@@ -79,10 +79,10 @@ if __name__ == '__main__':
     parser.add_argument("--nn_algorithm", choices=['auto', 'ball_tree', 'kd_tree', 'brute'], default='auto')
     parser.add_argument("--radius_same", type=float, default=0.5)
     parser.add_argument("--mqtt_name", default='nn_server')
-    parser.add_argument("--mqtt_host", default='10.0.0.40')
+    parser.add_argument("--mqtt_host", default='192.168.22.20')
     parser.add_argument("--mqtt_port", type=int, default=1883)
-    parser.add_argument("--ping_interval", type=int, default=30*60)     # 30 mins
-    parser.add_argument("--reset_interval", type=int, default=24*60*60) # 24 hours
+    parser.add_argument("--ping_interval", type=int, default=30)     	# 30 sec
+    parser.add_argument("--reset_interval", type=int, default=10*60) 	# 10 mins
     parser.add_argument("--debug", action='store_true', default=False)
     parser.add_argument("--profile")
     args = parser.parse_args()
