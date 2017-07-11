@@ -238,7 +238,8 @@ def processing(left_frame, right_frame, done, args):
             except requests.exceptions.RequestException as e:
                 print(e)
                 # if any error occurs, set dummy face id
-                left_ids = 100000 + np.array(range(len(left_descriptors)))
+                #left_ids = 100000 + np.array(range(len(left_descriptors)))
+                continue
         else:
             left_ids = []
         #print("left_ids:", left_ids)
@@ -295,7 +296,8 @@ def processing(left_frame, right_frame, done, args):
             except requests.exceptions.RequestException as e:
                 print(e)
                 # if any error occurs, set dummy face id
-                right_ids = 100000 + np.array(range(len(right_descriptors)))
+                #right_ids = 100000 + np.array(range(len(right_descriptors)))
+                continue
         else:
             right_ids = []
         #print("right_ids:", right_ids)
